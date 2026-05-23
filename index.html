@@ -266,6 +266,30 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
         <input id="f-room" placeholder="예) 301강, A강의실">
       </div>
       <div class="field">
+        <label>개강일</label>
+        <input id="f-startdate" type="date">
+      </div>
+      <div class="field">
+        <label>종강 방식</label>
+        <select id="f-endmode" onchange="onEndModeChange()">
+          <option value="없음">종강일 없음</option>
+          <option value="직접">종강일 직접 입력</option>
+          <option value="회차">총 회차로 계산</option>
+        </select>
+      </div>
+      <div class="field" id="f-enddate-wrap" style="display:none">
+        <label>종강일</label>
+        <input id="f-enddate" type="date">
+      </div>
+      <div class="field" id="f-totalcount-wrap" style="display:none">
+        <label>총 회차</label>
+        <input id="f-totalcount" type="number" min="1" placeholder="예) 8">
+      </div>
+      <div class="field" id="f-enddate-calc-wrap" style="display:none">
+        <label>계산된 종강일</label>
+        <input id="f-enddate-calc" readonly style="background:#f5f5f5;color:#888">
+      </div>
+      <div class="field">
         <label>과목 *</label>
         <select id="f-subject">
           <option>국어</option><option>수학</option><option>과탐</option><option>사탐</option><option>기타</option>
@@ -307,6 +331,28 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
       <button class="btn btn-danger" id="del-btn" style="display:none;margin-right:auto" onclick="deleteCourse()">삭제</button>
       <button class="btn" onclick="closeOverlay()">취소</button>
       <button class="btn btn-p" onclick="saveCourse()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 대체 수업 모달 -->
+<div class="overlay" id="replace-overlay" onclick="closeReplaceModal(event)">
+  <div class="modal" style="width:400px">
+    <div class="mhd"><h2>대체 수업 등록</h2><button class="xbtn" onclick="closeReplaceOverlay()">×</button></div>
+    <p style="font-size:12px;color:var(--txt2);margin-bottom:14px">
+      강좌: <strong id="r-course-name"></strong><br>
+      원래 날짜 <strong id="r-orig-date"></strong> → 자동 휴강 처리됩니다
+    </p>
+    <input type="hidden" id="r-course-id"><input type="hidden" id="r-orig-date-val">
+    <div class="fg">
+      <div class="field"><label>대체 날짜 *</label><input id="r-repl-date" type="date"></div>
+      <div class="field"><label>사유</label><input id="r-reason" placeholder="예) 공휴일 대체"></div>
+      <div class="field"><label>시작 시간</label><input id="r-start" type="time"></div>
+      <div class="field"><label>종료 시간</label><input id="r-end" type="time"></div>
+    </div>
+    <div class="macts">
+      <button class="btn" onclick="closeReplaceOverlay()">취소</button>
+      <button class="btn btn-p" onclick="saveReplace()">등록</button>
     </div>
   </div>
 </div>
@@ -575,13 +621,27 @@ function render(){
   // dayGroups[di] = { 국어:[lane,lane,...], 수학:[lane,...], ... }
   const dayGroups=days.map(d=>{
     const kr=dayKr(d);
+    const iso=isoDate(d);
     const dayCourses=courses.filter(c=>{
       if(!c.days.includes(kr)) return false;
+      if(!courseActiveOn(c,iso)) return false;
+      if(replaces.some(r=>r.courseId===c.id&&r.origDate===iso)) return false;
       if(activeSub!=='전체'&&c.subject!==activeSub) return false;
       if(activeType!=='전체'&&c.type!==activeType) return false;
       return true;
     });
-    const lanes=computeLanes(dayCourses);
+    const replOn=getReplacesOn(iso);
+    const replaceCourses=replOn.map(r=>{
+      const orig=courses.find(c=>c.id===r.courseId);
+      if(!orig) return null;
+      return {...orig,_isReplace:true,_replaceId:r.id,_reason:r.reason,_origDate:r.origDate,
+        start:r.start||orig.start,end:r.end||orig.end};
+    }).filter(Boolean).filter(c=>{
+      if(activeSub!=='전체'&&c.subject!==activeSub) return false;
+      if(activeType!=='전체'&&c.type!==activeType) return false;
+      return true;
+    });
+    const lanes=computeLanes([...dayCourses,...replaceCourses]);
     const bySubj={};
     lanes.forEach(lane=>{
       const s=lane[0]?.subject||'기타';
@@ -704,11 +764,13 @@ function render(){
             <div class="ev-top">
               <span class="ev-name">${c.name}</span>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
-                <span class="ev-badge badge-${c.type}">${c.type}</span>
+                ${isReplace?'<span class="ev-badge badge-대체">대체</span>':''}
+            <span class="ev-badge badge-${c.type}">${c.type}</span>
                 ${c.room?`<span class="ev-room">${c.room}</span>`:''}
               </div>
             </div>
             <span class="ev-teacher">${c.teacher||'미정'}</span>
+          ${isReplace&&c._origDate?`<span style="font-size:8px;color:var(--green-d);opacity:.85">↩ 원래 ${c._origDate}</span>`:''}
             <span class="ev-time">${c.start}–${c.end}</span>
           `;
           const kr=dayKr(d);
@@ -750,8 +812,12 @@ function showDP(e,c,day,isClosed=false,dateIso=''){
       <h3>[${c.subject}] ${c.name}${isClosed?' <span style="font-size:10px;color:#922020">🚫 휴강</span>':''}</h3>
       <div class="dp-acts">
         ${IS_ADMIN?(!isClosed?`<button class="dpb" onclick="quickHoliday('${c.id}','${dateIso}')">휴강</button>`:`<button class="dpb" onclick="cancelHoliday('${c.id}','${dateIso}')">휴강 해제</button>`):''}
-        ${IS_ADMIN?`<button class="dpb" onclick="openEditModal('${c.id}')">수정</button>
-        <button class="dpb del" onclick="confirmDel('${c.id}')">삭제</button>`:''}
+        ${IS_ADMIN?(isReplace?
+          `<button class="dpb del" onclick="deleteReplace('${c._replaceId}','${dateIso}','${c.id}')">대체 취소</button>`
+          :`<button class="dpb" onclick="openReplaceModal('${c.id}','${dateIso}')">대체 등록</button>
+           <button class="dpb" onclick="openEditModal('${c.id}')">수정</button>
+           <button class="dpb del" onclick="confirmDel('${c.id}')">삭제</button>`)
+        :''}
         <button class="dpb" onclick="hideDP()" style="padding:3px 5px">×</button>
       </div>
     </div>
@@ -759,8 +825,12 @@ function showDP(e,c,day,isClosed=false,dateIso=''){
     <div class="dp-row"><span class="k">요일</span><span class="v">${day}요일</span></div>
     <div class="dp-row"><span class="k">시간</span><span class="v">${c.start} ~ ${c.end}</span></div>
     ${c.room?`<div class="dp-row"><span class="k">강의실</span><span class="v">${c.room}</span></div>`:''}
-    <div class="dp-row"><span class="k">유형</span><span class="v">${c.type}</span></div>
-    ${closedH&&closedH.reason?`<div class="dp-row"><span class="k">휴강 사유</span><span class="v" style="color:#922020">${closedH.reason}</span></div>`:''}
+    <div class="dp-row"><span class="k">유형</span><span class="v">${c.type}${isReplace?' · <span style=\'color:var(--green-d)\'>대체수업</span>':''}</span></div>
+    ${isReplace&&c._origDate?`<div class="dp-row"><span class="k">원래 날짜</span><span class="v" style="color:var(--green-d)">↩ ${c._origDate}</span></div>`:''}
+    ${isReplace&&c._reason?`<div class="dp-row"><span class="k">대체 사유</span><span class="v" style="color:var(--green-d)">${c._reason}</span></div>`:''}
+    ${closedH&&closedH.reason?(closedH.reason.startsWith('대체수업')?
+      `<div class="dp-row"><span class="k">대체 날짜</span><span class="v" style="color:var(--green-d)">${closedH.reason.replace('대체수업(','').replace(')','')}</span></div>`
+      :`<div class="dp-row"><span class="k">휴강 사유</span><span class="v" style="color:#922020">${closedH.reason}</span></div>`):''}
     ${c.memo?`<div class="dp-row"><span class="k">메모</span><span class="v">${c.memo}</span></div>`:''}
   `;
   let x=e.clientX+12,y=e.clientY-10;
@@ -787,6 +857,12 @@ function openAddModal(presetDay, presetMins){
   document.getElementById('f-subject').value='국어';
   document.getElementById('f-type').value='수업';
   document.getElementById('f-room').value='';
+  document.getElementById('f-startdate').value='';
+  document.getElementById('f-endmode').value='없음';
+  document.getElementById('f-enddate').value='';
+  document.getElementById('f-totalcount').value='';
+  document.getElementById('f-enddate-calc').value='';
+  onEndModeChange();
   document.getElementById('f-memo').value='';
   document.getElementById('conflict-warn').style.display='none';
   if(presetMins!==undefined){
@@ -817,6 +893,12 @@ function openEditModal(id){
   document.getElementById('f-start').value=c.start;
   document.getElementById('f-end').value=c.end;
   document.getElementById('f-room').value=c.room||'';
+  document.getElementById('f-startdate').value=c.startDate||'';
+  document.getElementById('f-endmode').value=c.endMode||'없음';
+  document.getElementById('f-enddate').value=c.endDate||'';
+  document.getElementById('f-totalcount').value=c.totalCount||'';
+  onEndModeChange();
+  if((c.endMode||'없음')==='회차') updateCalcEndDate();
   document.getElementById('f-memo').value=c.memo||'';
   document.getElementById('conflict-warn').style.display='none';
   document.querySelectorAll('#day-checks input').forEach(cb=>{
@@ -855,7 +937,13 @@ function saveCourse(){
     start:document.getElementById('f-start').value,
     end:document.getElementById('f-end').value,
     days,
-    room:document.getElementById('f-room').value.trim(),
+    room:       document.getElementById('f-room').value.trim(),
+    startDate:  document.getElementById('f-startdate').value,
+    endMode:    document.getElementById('f-endmode').value,
+    totalCount: parseInt(document.getElementById('f-totalcount').value)||0,
+    endDate:    (()=>{const m=document.getElementById('f-endmode').value;
+                  return m==='직접'?document.getElementById('f-enddate').value
+                        :m==='회차'?document.getElementById('f-enddate-calc').value:'';})(),
     memo:document.getElementById('f-memo').value.trim()
   };
   // Conflict check — show warning but allow save (lanes will handle it)
@@ -877,9 +965,11 @@ function saveCourse(){
   // Sheets 동기화
   const saved=courses.find(x=>x.id===data.id)||data;
   sheetPost('saveCourse',{
-    'COURSE_ID':saved.id,'과목':saved.subject,'강좌명':saved.name,
-    '선생님':saved.teacher,'유형':saved.type,'요일':saved.days,
-    '시작':saved.start,'종료':saved.end,'강의실':saved.room,'메모':saved.memo
+    id:saved.id,type:saved.type,subject:saved.subject,name:saved.name,
+    teacher:saved.teacher,days:saved.days,start:saved.start,end:saved.end,
+    room:saved.room||'',memo:saved.memo||'',
+    startDate:saved.startDate||'',endMode:saved.endMode||'없음',
+    totalCount:saved.totalCount||0,endDate:saved.endDate||''
   });
 }
 
@@ -961,6 +1051,74 @@ document.querySelectorAll('[data-f]').forEach(btn=>{
 // ═══════════════════════════════
 //  IMPORT / EXPORT
 // ═══════════════════════════════
+// ── REPLACE FUNCTIONS ──
+function openReplaceModal(courseId,origDate){
+  hideDP();
+  const c=courses.find(x=>x.id===courseId);if(!c)return;
+  document.getElementById('r-course-name').textContent=`[${c.subject}] ${c.name}`;
+  document.getElementById('r-orig-date').textContent=origDate;
+  document.getElementById('r-repl-date').value='';
+  document.getElementById('r-start').value=c.start;
+  document.getElementById('r-end').value=c.end;
+  document.getElementById('r-reason').value='';
+  document.getElementById('r-course-id').value=courseId;
+  document.getElementById('r-orig-date-val').value=origDate;
+  document.getElementById('replace-overlay').classList.add('open');
+}
+function closeReplaceOverlay(){document.getElementById('replace-overlay').classList.remove('open')}
+function closeReplaceModal(e){if(e.target===document.getElementById('replace-overlay'))closeReplaceOverlay()}
+function saveReplace(){
+  const courseId=document.getElementById('r-course-id').value;
+  const origDate=document.getElementById('r-orig-date-val').value;
+  const replDate=document.getElementById('r-repl-date').value;
+  if(!replDate){alert('대체 날짜를 선택해주세요');return}
+  const start=document.getElementById('r-start').value;
+  const end=document.getElementById('r-end').value;
+  const reason=document.getElementById('r-reason').value.trim();
+  const id='R'+Date.now();
+  const data={id,courseId,origDate,replDate,start,end,reason};
+  replaces.push(data);
+  holidays.push({date:origDate,scope:'course',courseId,reason:`대체수업(${replDate})`});
+  saveHolidays();closeReplaceOverlay();render();
+  sheetPost('saveReplace',data);
+  sheetPost('saveHoliday',{date:origDate,scope:'course',courseId,reason:`대체수업(${replDate})`});
+}
+function deleteReplace(replaceId,origDate,courseId){
+  replaces=replaces.filter(r=>r.id!==replaceId);
+  holidays=holidays.filter(h=>!(h.date===origDate&&h.scope==='course'&&h.courseId===courseId&&(h.reason||'').startsWith('대체수업')));
+  saveHolidays();hideDP();render();
+  sheetPost('deleteReplace',{id:replaceId});
+  sheetPost('deleteHoliday',{date:origDate,scope:'course',courseId});
+}
+
+// ── 종강방식 UI ──
+function onEndModeChange(){
+  const m=document.getElementById('f-endmode').value;
+  document.getElementById('f-enddate-wrap').style.display=m==='직접'?'':'none';
+  document.getElementById('f-totalcount-wrap').style.display=m==='회차'?'':'none';
+  document.getElementById('f-enddate-calc-wrap').style.display=m==='회차'?'':'none';
+}
+function updateCalcEndDate(){
+  const sd=document.getElementById('f-startdate').value;
+  const tc=parseInt(document.getElementById('f-totalcount').value)||0;
+  const days=[...document.querySelectorAll('#day-checks input:checked')].map(cb=>cb.value);
+  if(!sd||!tc||!days.length){document.getElementById('f-enddate-calc').value='';return;}
+  const DN={일:0,월:1,화:2,수:3,목:4,금:5,토:6};
+  const dns=days.map(d=>DN[d]);
+  let cnt=0,cur=new Date(sd),last=new Date(sd);
+  for(let i=0;i<365*5;i++){
+    if(dns.includes(cur.getDay())){cnt++;last=new Date(cur);if(cnt>=tc)break;}
+    cur.setDate(cur.getDate()+1);
+  }
+  document.getElementById('f-enddate-calc').value=last.toISOString().slice(0,10);
+}
+document.addEventListener('change',e=>{
+  if(e.target.closest&&(e.target.closest('#day-checks')||e.target.id==='f-totalcount'||e.target.id==='f-startdate')){
+    const em=document.getElementById('f-endmode');
+    if(em&&em.value==='회차') updateCalcEndDate();
+  }
+});
+
 function exportJSON(){
   const blob=new Blob([JSON.stringify({courses,holidays},null,2)],{type:'application/json'});
   const a=document.createElement('a');
