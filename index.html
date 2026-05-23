@@ -505,17 +505,25 @@ function showError(msg){
 }
 
 function normalizeSheetCourse(r){
+  // Apps Script v3는 이미 정규화된 필드명(id, subject, name...)으로 반환
+  // 시트 헤더명(COURSE_ID, 과목...)도 함께 대응
+  const days = Array.isArray(r.days) ? r.days
+    : (r['요일'] ? r['요일'].split(/[,·\/]/).map(s=>s.trim()).filter(Boolean) : []);
   return {
-    id:      r['COURSE_ID']||r['id']||'',
-    subject: r['과목']||r['subject']||'',
-    name:    r['강좌명']||r['name']||'',
-    teacher: r['선생님']||r['teacher']||'',
-    type:    r['유형']||r['type']||'수업',
-    days:    Array.isArray(r['요일'])?r['요일']:(r['요일']?r['요일'].split(/[,·]/).map(s=>s.trim()):[]),
-    start:   r['시작']||r['start']||'',
-    end:     r['종료']||r['end']||'',
-    room:    r['강의실']||r['room']||'',
-    memo:    r['메모']||r['memo']||'',
+    id:         r.id        || r['COURSE_ID'] || '',
+    subject:    r.subject   || r['과목']      || '',
+    name:       r.name      || r['강좌명']    || '',
+    teacher:    r.teacher   || r['선생님']    || '',
+    type:       r.type      || r['유형']      || '수업',
+    days,
+    start:      r.start     || r['시작']      || '',
+    end:        r.end       || r['종료']      || '',
+    room:       r.room      || r['강의실']    || '',
+    memo:       r.memo      || r['메모']      || '',
+    startDate:  r.startDate || r['개강일']    || '',
+    endDate:    r.endDate   || r['종강일']    || '',
+    endMode:    r.endMode   || r['종강방식']  || '없음',
+    totalCount: parseInt(r.totalCount || r['총회차']) || 0,
   };
 }
 
