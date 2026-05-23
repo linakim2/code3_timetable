@@ -829,7 +829,7 @@ function render(){
           ev.style.height='auto';
           // ── 먼저 선언 ──
           const kr=dayKr(d);
-          const dateStr2=isoDate(days[sp.di]);
+          const dateStr2=isoDate(d);
           const isReplace=!!c._isReplace;
           const isClosed=!isReplace&&holidays.some(h=>
             h.date===dateStr2 &&
