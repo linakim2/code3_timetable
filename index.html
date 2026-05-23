@@ -180,6 +180,24 @@ main{padding:16px 24px}
 .conflict-warn{font-size:11px;color:var(--red-d);background:var(--red-l);border:1px solid var(--red-m);border-radius:7px;padding:7px 10px;margin-top:10px;display:none}
 
 footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
+
+/* 로딩 스피너 */
+.loading-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(247,246,243,.85);
+  z-index:9999;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+.loading-overlay.show{display:flex}
+.loading-spinner{
+  width:36px;height:36px;
+  border:3px solid var(--bdr);
+  border-top-color:var(--blue-m);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--txt2);font-weight:400}
 </style>
 </head>
 <body>
@@ -387,6 +405,11 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   </div>
 </div>
 
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">시간표 불러오는 중...</div>
+</div>
+
 <footer>데이터는 이 브라우저에 자동 저장됩니다</footer>
 
 <script>
@@ -398,7 +421,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbykX6Af1AaEG_1HxuAx60Pm-kRU_3TlQQdf3FPgcSK_hfPHAb2LA-Uc5Z_JAiZBuNc2XQ/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsGb6ELsxM3uZef-pZv1e3blWU899Q7J6HP8x1W_FPWqcCFPuHfGnBiKjWlorqLM-oQ/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -504,11 +527,34 @@ function showError(msg){
   setTimeout(()=>el.style.display='none', 8000);
 }
 
+// Date 객체나 Date 문자열 → "HH:MM" 변환
+function parseTime(v){
+  if(!v) return '';
+  const s = String(v);
+  // 이미 HH:MM 형식
+  if(/^\d{1,2}:\d{2}$/.test(s)) return s.padStart(5,'0');
+  // Date 문자열 (Sat Dec 30 1899 18:30:00 ...)
+  const m = s.match(/(\d{1,2}):(\d{2}):\d{2}/);
+  if(m) return m[1].padStart(2,'0')+':'+m[2];
+  return '';
+}
+// Date 객체나 Date 문자열 → "yyyy-MM-dd" 변환
+function parseDate(v){
+  if(!v) return '';
+  const s = String(v);
+  // 이미 yyyy-MM-dd 형식
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Date 문자열 파싱
+  try{
+    const d = new Date(s);
+    if(!isNaN(d)) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }catch(e){}
+  return '';
+}
+
 function normalizeSheetCourse(r){
-  // Apps Script v3는 이미 정규화된 필드명(id, subject, name...)으로 반환
-  // 시트 헤더명(COURSE_ID, 과목...)도 함께 대응
   const days = Array.isArray(r.days) ? r.days
-    : (r['요일'] ? r['요일'].split(/[,·\/]/).map(s=>s.trim()).filter(Boolean) : []);
+    : (r['요일'] ? String(r['요일']).split(/[,·\/]/).map(s=>s.trim()).filter(Boolean) : []);
   return {
     id:         r.id        || r['COURSE_ID'] || '',
     subject:    r.subject   || r['과목']      || '',
@@ -516,26 +562,20 @@ function normalizeSheetCourse(r){
     teacher:    r.teacher   || r['선생님']    || '',
     type:       r.type      || r['유형']      || '수업',
     days,
-    start:      r.start     || r['시작']      || '',
-    end:        r.end       || r['종료']      || '',
+    start:      parseTime(r.start  || r['시작']),
+    end:        parseTime(r.end    || r['종료']),
     room:       r.room      || r['강의실']    || '',
     memo:       r.memo      || r['메모']      || '',
-    startDate:  r.startDate || r['개강일']    || '',
-    endDate:    r.endDate   || r['종강일']    || '',
+    startDate:  parseDate(r.startDate || r['개강일']),
+    endDate:    parseDate(r.endDate   || r['종강일']),
     endMode:    r.endMode   || r['종강방식']  || '없음',
     totalCount: parseInt(r.totalCount || r['총회차']) || 0,
   };
 }
 
 function showLoading(on){
-  let el=document.getElementById('loading-bar');
-  if(!el){
-    el=document.createElement('div');
-    el.id='loading-bar';
-    el.style.cssText='position:fixed;top:0;left:0;right:0;height:3px;background:var(--blue-m);z-index:9999;transition:opacity .3s';
-    document.body.prepend(el);
-  }
-  el.style.opacity=on?'1':'0';
+  const el=document.getElementById('loading-overlay');
+  if(el) el.classList.toggle('show',on);
 }
 
 // ═══════════════════════════════
