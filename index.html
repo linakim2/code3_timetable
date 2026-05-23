@@ -462,7 +462,7 @@ async function sheetPost(action, data){
     body:JSON.stringify({password:pw,action,data}),
   });
 }
-let holidays=[]; // [{date:'2025-05-05', scope:'all'|'course', courseId:'', reason:''}]
+// holidays는 위에서 선언됨
 function updateCount(){document.getElementById('course-count').textContent=`강좌 ${courses.length}개`}
 
 async function load(){
