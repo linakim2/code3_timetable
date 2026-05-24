@@ -52,7 +52,7 @@ header{background:var(--w);border-bottom:1px solid var(--bdr);padding:13px 24px;
 main{padding:16px 24px}
 
 /* CALENDAR WRAPPER */
-.cal-outer{background:var(--w);border-radius:12px;border:1px solid var(--bdr);overflow:auto}
+.cal-outer{background:var(--w);border-radius:12px;border:1px solid var(--bdr);overflow-x:auto;overflow-y:visible}
 
 /* GRID uses CSS vars set by JS */
 .cal-grid{
@@ -68,9 +68,11 @@ main{padding:16px 24px}
   border-right:1px solid var(--bdr);
   font-size:11px;font-weight:500;color:var(--txt2);
   padding:8px 4px;text-align:center;
-  position:sticky;top:0;z-index:10;
+  position:sticky;top:0;z-index:10;box-shadow:0 1px 0 var(--bdr);
 }
 .gh:last-child{border-right:none}
+.day-sep{border-right:2px solid var(--bdr) !important}
+.gh.day-sep{border-right:2px solid var(--bdr) !important}
 .gh.today-head{color:var(--blue-d);background:var(--blue-l)}
 .gh .sub{font-size:10px;font-weight:400;opacity:.7;display:block;margin-top:1px}
 
@@ -127,14 +129,27 @@ main{padding:16px 24px}
 .badge-특강  {background:rgba(200,140,0,.2)}
 .badge-설명회{background:rgba(150,0,200,.15)}
 .badge-기타{background:rgba(100,100,100,.12)}
-.ev-teacher{font-size:8.5px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-teacher{font-size:10px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .ev-time{font-size:8px;opacity:.58;white-space:nowrap}
-.ev-room{font-size:10px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-room{font-size:10px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:auto;align-self:flex-end}
 /* 휴강 */
 .ev.ev-closed{opacity:.35;filter:grayscale(.6);pointer-events:auto}
 .ev-closed-bar{position:absolute;left:0;right:0;top:50%;height:1.5px;background:currentColor;opacity:.5;pointer-events:none}
-.badge-휴강{background:rgba(180,0,0,.18);color:#7a0000}
+.badge-휴강{background:#C0392B;color:#fff;font-weight:600}
 .badge-대체{background:rgba(0,140,80,.18);color:#085041}
+.duty-row{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 8px;font-size:11px;
+  background:#F7F6F3;border-bottom:1px solid var(--bdr);
+  border-right:1px solid var(--bdr);min-height:26px;
+}
+.duty-row:last-child{border-right:none}
+.duty-row.today-col{background:rgba(55,138,221,.06)}
+.duty-label{font-size:10px;color:var(--txt2);flex-shrink:0}
+.duty-name{font-size:11px;font-weight:500;color:var(--txt);cursor:pointer}
+.duty-name:hover{text-decoration:underline}
+.duty-empty{font-size:10px;color:#ccc;cursor:pointer}
+.duty-empty:hover{color:var(--txt2)}
 .day-holiday-banner{
   position:sticky;left:48px;
   font-size:10px;font-weight:600;color:#922020;
@@ -152,7 +167,7 @@ main{padding:16px 24px}
 /* DETAIL POPUP */
 .dp{display:none;position:fixed;z-index:600;background:var(--w);border:1px solid var(--bdr);border-radius:12px;padding:14px;min-width:210px;max-width:260px;box-shadow:0 8px 28px rgba(0,0,0,.1)}
 .dp.show{display:block}
-.dp-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:9px;gap:6px}
+.dp-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
 .dp-hd h3{font-size:13px;font-weight:600;line-height:1.3}
 .dp-acts{display:flex;gap:4px;flex-shrink:0}
 .dpb{font-family:inherit;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--bdr);background:var(--w);color:var(--txt2)}
@@ -237,7 +252,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   .col-head{font-size:10px;padding:6px 2px}
   .col-head .sub{font-size:9px}
   .tc{font-size:8px;padding:1px 3px 0 0;width:36px}
-  .cal-grid{grid-template-columns:36px repeat(var(--day-cols,7),minmax(80px,1fr)) !important}
+  .cal-grid{grid-template-columns:36px repeat(var(--day-cols,7),minmax(90px,1fr)) !important}
 
   /* 이벤트 블록 */
   .ev{padding:2px 4px}
@@ -436,6 +451,27 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   </div>
 </div>
 
+<!-- 당직자 모달 -->
+<div class="overlay" id="duty-overlay" onclick="closeDutyModal(event)">
+  <div class="modal" style="width:360px">
+    <div class="mhd">
+      <h2>당직자 등록</h2>
+      <button class="xbtn" onclick="closeDutyOverlay()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--txt2);margin-bottom:14px" id="duty-date-label"></p>
+    <input type="hidden" id="duty-date-val">
+    <div class="field">
+      <label>당직자 이름 (여러 명은 쉼표로 구분)</label>
+      <input id="duty-names" placeholder="예) 김철수, 이영희">
+    </div>
+    <div class="macts">
+      <button class="btn btn-danger" id="duty-del-btn" onclick="deleteDutyEntry()" style="margin-right:auto">삭제</button>
+      <button class="btn" onclick="closeDutyOverlay()">취소</button>
+      <button class="btn btn-p" onclick="saveDutyEntry()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 대체 수업 모달 -->
 <div class="overlay" id="replace-overlay" onclick="closeReplaceModal(event)">
   <div class="modal" style="width:400px">
@@ -507,7 +543,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkdlFld6ibKxkNcWZmT5Pyyg_OE90kvSEG4o-WuQGz_yDyduMxM5d12CyMrrFyoqt7Sw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztEWKlbhmcv47klRpp4lVY276fn_E0mhk3OGoJToewK1r_Y46lkY5Hxfe4QjmQzbHpcg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -515,7 +551,7 @@ const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면
 // ═══════════════════════════════
 //  STATE
 // ═══════════════════════════════
-let courses=[], holidays=[], replaces=[], curDate=new Date();
+let courses=[], holidays=[], replaces=[], duty=[], curDate=new Date();
 curDate.setHours(0,0,0,0);
 let activeSub='전체', activeType='전체';
 let editingId=null, dpActiveId=null;
@@ -581,6 +617,7 @@ async function load(){
       courses=(allData.data.courses||[]).map(normalizeSheetCourse);
       holidays=allData.data.holidays||[];
       replaces=allData.data.replaces||[];
+      duty=allData.data.duty||[];
     } else {
       showError('데이터 로드 실패: '+allData.error);
     }
@@ -848,33 +885,34 @@ function render(){
     return bySubj;
   });
 
-  // ── 2. 과목별 최대 lane 수 구하기 (전체 요일 중) ──
-  // 이 수만큼 모든 요일에 해당 과목 열을 확보 (부족하면 빈 열 추가)
-  const maxLanesPerSubj={};
-  SUBJ_ORDER.forEach(s=>{
-    maxLanesPerSubj[s]=Math.max(1,...days.map((_,di)=>(dayGroups[di][s]||[]).length));
-  });
-
-  // 실제로 어떤 과목이 하나라도 등장하는지
-  const activeSubjects=SUBJ_ORDER.filter(s=>days.some((_,di)=>(dayGroups[di][s]||[]).length>0));
-
-  // ── 3. 열 스펙 빌드 ──
-  // colSpec 배열: {type:'time'|'lane', di, subject, li, isEmpty}
-  // di는 요일 인덱스, li는 과목 내 lane 인덱스
-  // 과목 순서로 모든 요일에 동일한 열 배치
+  // ── 2~3. 열 스펙 빌드 (요일별 독립) ──
+  // 각 요일별로 실제 강좌 있는 과목/lane만 열 생성
+  // 강좌 없는 요일도 최소 1열 확보 (빈 날 표시용)
   const colSpec=[{type:'time'}];
   days.forEach((_,di)=>{
-    activeSubjects.forEach(subj=>{
-      const n=maxLanesPerSubj[subj];
+    let added=0;
+    SUBJ_ORDER.forEach(subj=>{
       const lanes=dayGroups[di][subj]||[];
-      for(let li=0;li<n;li++){
-        colSpec.push({type:'lane',di,subject:subj,li,isEmpty:li>=lanes.length});
+      if(!lanes.length) return;
+      for(let li=0;li<lanes.length;li++){
+        colSpec.push({type:'lane',di,subject:subj,li,isEmpty:false,isLast:false});
+        added++;
       }
     });
+    // 강좌 없는 요일: 빈 열 1개 추가 (헤더·당직 표시용)
+    if(added===0){
+      colSpec.push({type:'lane',di,subject:'',li:0,isEmpty:true,isLast:true});
+    }
   });
+  // 각 요일의 마지막 lane에 isLast 표시 (날짜 구분선용)
+  days.forEach((_,di)=>{
+    const dCols=colSpec.filter(s=>s.type==='lane'&&s.di===di);
+    if(dCols.length) dCols[dCols.length-1].isLast=true;
+  });
+  const activeSubjects=SUBJ_ORDER.filter(s=>days.some((_,di)=>(dayGroups[di][s]||[]).length>0));
 
   // CSS grid columns
-  const colWidths=colSpec.map(s=>s.type==='time'?'48px':'minmax(100px,1fr)');
+  const colWidths=colSpec.map(s=>s.type==='time'?'48px':'minmax(90px,1fr)');
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
   document.documentElement.style.setProperty('--day-cols', colWidths.length-1);
@@ -894,7 +932,8 @@ function render(){
     const firstCI=dayCols[0].i, lastCI=dayCols[dayCols.length-1].i;
     const h=document.createElement('div');
     const isAllHoliday=holidays.some(h=>h.date===isoDate(d)&&h.scope==='all');
-    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'');
+    const isLastDay=di<days.length-1;
+    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'')+(isLastDay?' day-sep':'');
     if(isAllHoliday) h.style.cssText+='background:#FEE9E9;color:#922020;';
     h.style.gridColumn=`${specCol(firstCI)} / ${specCol(lastCI)+1}`;
     h.style.gridRow='1';
@@ -904,9 +943,37 @@ function render(){
     grid.appendChild(h);
   });
 
+  // ── 4. 당직 행 ──
+  // corner cell
+  const dutyCorner=document.createElement('div');
+  dutyCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;';
+  dutyCorner.innerHTML='<span style="font-size:9px;color:#bbb">당직</span>';
+  grid.appendChild(dutyCorner);
+
+  // 날짜별 당직 셀
+  let dutyColOffset=2;
+  days.forEach((d,di)=>{
+    const iso=isoDate(d);
+    const isToday=d.getTime()===today.getTime();
+    const n=activeSubjects.reduce((sum,s)=>sum+maxLanesPerSubj[s],0)||1;
+    const firstCI=colSpec.findIndex(sp=>sp.type==='lane'&&sp.di===di);
+    const lastCI=[...colSpec].reverse().findIndex(sp=>sp.type==='lane'&&sp.di===di);
+    const lastCIActual=colSpec.length-1-lastCI;
+
+    const dutyCell=document.createElement('div');
+    dutyCell.className='duty-row'+(isToday?' today-col':'');
+    dutyCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual)+1};grid-row:2;`;
+    const dayDuty=duty.filter(dut=>dut.date===iso).flatMap(d=>d.names);
+    if(dayDuty.length){
+      dutyCell.innerHTML=`<span class="duty-label">👤</span><span class="duty-name" onclick="${IS_ADMIN?`openDutyModal('${iso}')`:''}">${dayDuty.join(', ')}</span>`;
+    } else if(IS_ADMIN){
+      dutyCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${iso}')">+ 당직자</span>`;
+    }
+    grid.appendChild(dutyCell);
+  });
 
   // ── 5. 시간 셀 + 강좌 셀 ──
-  const ROW_OFFSET=2; // row 1=day header, row 2~=time slots
+  const ROW_OFFSET=3; // row 1=day header, row 2=duty row, row 3~=time slots
   for(let s=0;s<TOTAL_SLOTS;s++){
     const mins=START_H*60+s*SLOT_MIN;
     const hh=Math.floor(mins/60),mm=mins%60;
@@ -922,7 +989,7 @@ function render(){
       const cssCol=specCol(ci);
       const isToday=days[sp.di]&&days[sp.di].getTime()===today.getTime();
       const cell=document.createElement('div');
-      cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'');
+      cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'')+(sp.isLast?' day-sep':'');
       cell.style.gridRow=row;cell.style.gridColumn=cssCol;
       if(sp.isEmpty) cell.style.background='rgba(0,0,0,.012)';
       const kr=dayKr(days[sp.di]);
@@ -978,10 +1045,10 @@ function render(){
               </div>
               <span class="ev-name">${c.name}</span>
             </div>
-            ${c.room?`<span class="ev-room">${c.room}</span>`:''}
             ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
             ${isReplace&&c._origDate?`<span style="font-size:8px;color:var(--green-d);opacity:.85">↩ 원래 ${c._origDate}</span>`:''}
             ${c.totalCount?`<span class="ev-time" style="opacity:.5">${c.totalCount}회</span>`:''}
+            ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
           `;
         if(isClosed){
           ev.classList.add('ev-closed');
@@ -1014,16 +1081,7 @@ function showDP(e,c,day,isClosed=false,dateIso=''){
   dp.innerHTML=`
     <div class="dp-hd">
       <h3>[${c.subject}] ${c.name}${isClosed?' <span style="font-size:10px;color:#922020">🚫 휴강</span>':''}</h3>
-      <div class="dp-acts">
-        ${IS_ADMIN?(!isClosed?`<button class="dpb" onclick="quickHoliday('${c.id}','${dateIso}')">휴강</button>`:`<button class="dpb" onclick="cancelHoliday('${c.id}','${dateIso}')">휴강 해제</button>`):''}
-        ${IS_ADMIN?(isReplace?
-          `<button class="dpb del" onclick="deleteReplace('${c._replaceId}','${dateIso}','${c.id}')">대체 취소</button>`
-          :`<button class="dpb" onclick="openReplaceModal('${c.id}','${dateIso}')">대체 등록</button>
-           <button class="dpb" onclick="openEditModal('${c.id}')">수정</button>
-           <button class="dpb del" onclick="confirmDel('${c.id}')">삭제</button>`)
-        :''}
-        <button class="dpb" onclick="hideDP()" style="padding:3px 5px">×</button>
-      </div>
+      <button class="dpb" onclick="hideDP()" style="padding:3px 5px;flex-shrink:0">×</button>
     </div>
     ${c.teacher?`<div class="dp-row"><span class="k">선생님</span><span class="v">${c.teacher}</span></div>`:''}
     <div class="dp-row"><span class="k">요일</span><span class="v">${day}요일</span></div>
@@ -1038,6 +1096,15 @@ function showDP(e,c,day,isClosed=false,dateIso=''){
       `<div class="dp-row"><span class="k">대체 날짜</span><span class="v" style="color:var(--green-d)">${closedH.reason.replace('대체수업(','').replace(')','')}</span></div>`
       :`<div class="dp-row"><span class="k">휴강 사유</span><span class="v" style="color:#922020">${closedH.reason}</span></div>`):''}
     ${c.memo?`<div class="dp-row"><span class="k">메모</span><span class="v">${c.memo}</span></div>`:''}
+    ${IS_ADMIN?`
+    <div class="dp-acts" style="margin-top:10px;padding-top:8px;border-top:1px solid #F0EEE9;justify-content:flex-end">
+      ${!isClosed?`<button class="dpb" onclick="quickHoliday('${c.id}','${dateIso}')">휴강</button>`:`<button class="dpb" onclick="cancelHoliday('${c.id}','${dateIso}')">휴강 해제</button>`}
+      ${isReplace?
+        `<button class="dpb del" onclick="deleteReplace('${c._replaceId}','${dateIso}','${c.id}')">대체 취소</button>`
+        :`<button class="dpb" onclick="openReplaceModal('${c.id}','${dateIso}')">대체 등록</button>
+         <button class="dpb" onclick="openEditModal('${c.id}')">수정</button>
+         <button class="dpb del" onclick="confirmDel('${c.id}')">삭제</button>`}
+    </div>`:''}
   `;
   const dpW=Math.min(270,window.innerWidth*0.9);
   const dpH=240;
