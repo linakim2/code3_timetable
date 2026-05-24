@@ -627,7 +627,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSnF3qK22LlGDIQB_dPKll8DnCQlLtbmixkYvSW5VR8glwMWGny5kcDW9ek_pgCwbmQ/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyn9N3GxMgNkpDPD9wkwrvSG451vP5c3PIYPHoh5C2I_0uKRMF-Tfko7UvPBtmLwsW3uw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -1347,7 +1347,7 @@ const STUDY_CAFE_HOURS={
   weekday:'16:00~24:00',
   saturday:'09:00~24:00',
   sunday:'09:00~22:00',
-  holiday:'09:00~22:00',
+  holiday:'10:00~22:00',
 };
 
 function getDefaultCafeHours(iso){
