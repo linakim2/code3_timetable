@@ -627,7 +627,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYALmGJmTEVHHiTcU7YLY-n9xYpAeHa1IZp66kkhkrzW4mx-8KHhFloJAJNe6XLKlMJg/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxBSnF3qK22LlGDIQB_dPKll8DnCQlLtbmixkYvSW5VR8glwMWGny5kcDW9ek_pgCwbmQ/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -701,10 +701,10 @@ async function load(){
     const allData=await fetchGAS(SCRIPT_URL+'?action=all');
     if(allData.ok){
       courses=(allData.data.courses||[]).map(normalizeSheetCourse);
-      holidays=allData.data.holidays||[];
-      replaces=allData.data.replaces||[];
-      duty=allData.data.duty||[];
-      dateEvents=allData.data.events||[];
+      holidays=(allData.data.holidays||[]).map(h=>({...h,date:parseDate(h.date)}));
+      replaces=(allData.data.replaces||[]).map(r=>({...r,origDate:parseDate(r.origDate),replDate:parseDate(r.replDate)}));
+      duty=(allData.data.duty||[]).map(d=>({...d,date:parseDate(d.date)}));
+      dateEvents=(allData.data.events||[]).map(e=>({...e,date:parseDate(e.date)}));
 
     } else {
       showError('데이터 로드 실패: '+allData.error);
