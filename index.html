@@ -221,7 +221,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 .day-time-toggle{font-size:10px;color:var(--blue-m);cursor:pointer;padding:2px 6px;border:1px solid var(--blue-m);border-radius:4px;white-space:nowrap}
 .day-time-toggle:hover{background:var(--blue-l)}
 .day-time-inputs{display:flex;align-items:center;gap:4px;font-size:11px}
-.day-time-inputs input{font-family:inherit;font-size:11px;padding:3px 5px;border:1px solid var(--bdr);border-radius:6px;width:70px}
+.day-time-inputs input[type=time]{font-family:inherit;font-size:11px;padding:3px 5px;border:1px solid var(--bdr);border-radius:6px;width:90px;min-width:90px}
 
 /* 로딩 스피너 */
 .date-range-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -495,6 +495,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
         <option value="공휴일">공휴일</option>
         <option value="모의고사">모의고사</option>
         <option value="운영시간">☕ 스터디카페 운영시간 변경</option>
+        <option value="근무">📋 근무 특이사항</option>
       </select>
     </div>
     <div class="macts">
@@ -508,14 +509,14 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 <div class="overlay" id="duty-overlay">
   <div class="modal" style="width:360px">
     <div class="mhd">
-      <h2>상담실 등록</h2>
+      <h2>특이사항 등록</h2>
       <button class="xbtn" onclick="closeDutyOverlay()">×</button>
     </div>
     <p style="font-size:12px;color:var(--txt2);margin-bottom:14px" id="duty-date-label"></p>
     <input type="hidden" id="duty-date-val">
     <div class="field">
-      <label>상담실 이름 (여러 명은 쉼표로 구분)</label>
-      <input id="duty-names" placeholder="예) 김철수, 이영희">
+      <label>특이사항 내용 (여러 개는 쉼표로 구분)</label>
+      <input id="duty-names" placeholder="예) 상담실: 김영태T, 조기종강">
     </div>
     <div class="macts">
       <button class="btn btn-danger" id="duty-del-btn" onclick="deleteDutyEntry()" style="margin-right:auto">삭제</button>
@@ -624,7 +625,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxeQmcpMw6wWcz7RlT7BV8XZ9ZOSma6xAkzXscxR6wpk2YMg6GMICi1VKDJcABF7GmRw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYALmGJmTEVHHiTcU7YLY-n9xYpAeHa1IZp66kkhkrzW4mx-8KHhFloJAJNe6XLKlMJg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -632,26 +633,9 @@ const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면
 // ═══════════════════════════════
 //  STATE
 // ═══════════════════════════════
-let courses=[], holidays=[], replaces=[], duty=[], dateEvents=[], workHours=[], curDate=new Date();
+let courses=[], holidays=[], replaces=[], duty=[], dateEvents=[], curDate=new Date();
 
-// 기본 근무 시간 (Sheets에 없으면 이걸 사용)
-const DEFAULT_WORK_HOURS=[
-  {teacher:'김연정T',day:'월',start:'17:30',end:'22:30'},
-  {teacher:'김연정T',day:'화',start:'17:30',end:'22:30'},
-  {teacher:'김연정T',day:'금',start:'15:00',end:'22:00'},
-  {teacher:'김연정T',day:'토',start:'09:00',end:'22:30'},
-  {teacher:'김연정T',day:'일',start:'09:00',end:'22:30'},
-  {teacher:'최유선T',day:'월',start:'15:30',end:'22:30'},
-  {teacher:'최유선T',day:'수',start:'15:00',end:'22:30'},
-  {teacher:'최유선T',day:'금',start:'15:30',end:'22:30'},
-  {teacher:'최유선T',day:'토',start:'07:30',end:'19:00'},
-  {teacher:'최유선T',day:'일',start:'21:00',end:'20:00'},
-  {teacher:'김영태T',day:'월',start:'15:30',end:'22:30'},
-  {teacher:'김영태T',day:'수',start:'15:00',end:'22:30'},
-  {teacher:'김영태T',day:'금',start:'15:30',end:'22:30'},
-  {teacher:'김영태T',day:'토',start:'11:00',end:'22:30'},
-  {teacher:'김영태T',day:'일',start:'11:30',end:'22:30'},
-];
+
 curDate.setHours(0,0,0,0);
 let activeSubs=new Set(['전체']), activeTypes=new Set(['전체']);
 let editingId=null, dpActiveId=null;
@@ -719,7 +703,7 @@ async function load(){
       replaces=allData.data.replaces||[];
       duty=allData.data.duty||[];
       dateEvents=allData.data.events||[];
-      workHours=allData.data.work&&allData.data.work.length?allData.data.work:DEFAULT_WORK_HOURS;
+
     } else {
       showError('데이터 로드 실패: '+allData.error);
     }
@@ -830,11 +814,13 @@ function computeLanes(dayCourses){
     }
 
     // Pass 2: 안 겹침 + 이 lane이 다른 선생님 전용이 아닌 경우만
+    // (선생님 없는 강좌는 어느 lane에나 가능)
     if(bestLane===-1){
       for(const {i,l} of sameSbjLanes){
         const noOvlp=l.courses.every(x=>!overlaps(x,c));
+        const noTeacher=!c.teacher;
         const hasOtherTeacherOnly=l.courses.length>0 && !l.courses.some(x=>shareTeacher(x,c));
-        if(noOvlp && !hasOtherTeacherOnly){ bestLane=i; break; }
+        if(noOvlp && (noTeacher || !hasOtherTeacherOnly)){ bestLane=i; break; }
       }
     }
 
@@ -1140,33 +1126,18 @@ function render(){
     grid.appendChild(cafeCell);
   });
 
-  // ── 4. 상담실 행 ──
-  // corner cell
-  const dutyCorner=document.createElement('div');
-  dutyCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:center;';
-  dutyCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">상담실</span>';
-  grid.appendChild(dutyCorner);
-
-  // gap/divider 상담실 셀
-  colSpec.forEach((sp,ci)=>{
-    if(sp.type!=='gap'&&sp.type!=='divider') return;
-    const dc=document.createElement('div');
-    dc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
-    grid.appendChild(dc);
-  });
-
-  // ── 근무시간 행 (관리자만) ──
-  if(IS_ADMIN){
+  // ── 특이사항 행 ──
+  {
     const workCorner=document.createElement('div');
-    workCorner.style.cssText='grid-column:1;grid-row:4;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
-    workCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">근무</span>';
+    workCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+    workCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">특이사항</span>';
     grid.appendChild(workCorner);
 
     // gap/divider 근무 셀
     colSpec.forEach((sp,ci)=>{
       if(sp.type!=='gap'&&sp.type!=='divider') return;
       const sc=document.createElement('div');
-      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:4;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
       grid.appendChild(sc);
     });
 
@@ -1179,20 +1150,24 @@ function render(){
 
       const workCell=document.createElement('div');
       workCell.className='work-row'+(isToday?' today-col':'');
-      workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:4;`;
+      workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:3;`;
 
-      // 이 요일 근무하는 선생님들
-      const effective=workHours.filter(w=>w.day===kr);
-      if(effective.length){
-        workCell.innerHTML=effective.map(w=>
-          `<div class="work-item"><span class="work-teacher">${w.teacher}</span><span class="work-time">${w.start}~${w.end}</span></div>`
-        ).join('');
+      // 특이사항: 상담실 + 근무 특이사항 통합 표시
+      const dayDutyW=duty.filter(dut=>dut.date===isoDate(d)).flatMap(d=>d.names);
+      const customWork=dateEvents.filter(e=>e.date===isoDate(d)&&e.type==='근무');
+      const items=[];
+      if(dayDutyW.length) items.push(`<div class="work-item"><span class="work-teacher">${dayDutyW.join(', ')}</span></div>`);
+      customWork.forEach(w=>items.push(`<div class="work-item"><span class="work-teacher" style="color:var(--red-d)">${w.content}</span></div>`));
+      if(items.length){
+        workCell.innerHTML=items.join('');
+      } else if(IS_ADMIN){
+        workCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${isoDate(d)}')">+ 추가</span>`;
       }
       grid.appendChild(workCell);
     });
   }
 
-  // 날짜별 상담실 셀
+  } // 상담실 행 끝 (비활성화)
   let dutyColOffset=2;
   days.forEach((d,di)=>{
     const iso=isoDate(d);
@@ -1217,7 +1192,7 @@ function render(){
   });
 
   // ── 5. 시간 셀 + 강좌 셀 ──
-  const ROW_OFFSET=IS_ADMIN?5:4; // 관리자: 헤더+스터디+상담실+근무+슬롯 / 뷰어: 헤더+스터디+상담실+슬롯
+  const ROW_OFFSET=4; // 헤더+스터디+특이사항+슬롯
   for(let s=0;s<TOTAL_SLOTS;s++){
     const mins=START_H*60+s*SLOT_MIN;
     const hh=Math.floor(mins/60),mm=mins%60;
@@ -1809,6 +1784,31 @@ function collectDayTimes(){
     if(s&&e) result[day]={start:s,end:e};
   });
   return result;
+}
+
+// ── DUTY FUNCTIONS ──
+function openDutyModal(dateIso){
+  document.getElementById('duty-date-label').textContent=dateIso+' 특이사항';
+  document.getElementById('duty-date-val').value=dateIso;
+  const existing=duty.filter(d=>d.date===dateIso).flatMap(d=>d.names);
+  document.getElementById('duty-names').value=existing.join(', ');
+  document.getElementById('duty-del-btn').style.display=existing.length?'':'none';
+  document.getElementById('duty-overlay').classList.add('open');
+}
+function closeDutyOverlay(){document.getElementById('duty-overlay').classList.remove('open')}
+function saveDutyEntry(){
+  const dateIso=document.getElementById('duty-date-val').value;
+  const names=document.getElementById('duty-names').value.split(/[,·]/).map(s=>s.trim()).filter(Boolean);
+  duty=duty.filter(d=>d.date!==dateIso);
+  if(names.length) duty.push({date:dateIso,names});
+  closeDutyOverlay();render();
+  sheetPost('saveDuty',{date:dateIso,names});
+}
+function deleteDutyEntry(){
+  const dateIso=document.getElementById('duty-date-val').value;
+  duty=duty.filter(d=>d.date!==dateIso);
+  closeDutyOverlay();render();
+  sheetPost('deleteDuty',{date:dateIso});
 }
 
 // ── DATE EVENT FUNCTIONS ──
