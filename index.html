@@ -624,7 +624,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziH1UJ4qX1EuLQQu7uJK8p_15Zu0MQoKakCM-dt8The9PMXHXJU8Ay45OuFu2tUusZAw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxeQmcpMw6wWcz7RlT7BV8XZ9ZOSma6xAkzXscxR6wpk2YMg6GMICi1VKDJcABF7GmRw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -1206,10 +1206,13 @@ function render(){
     dutyCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual)+1};grid-row:3;`;
     const dayDuty=duty.filter(dut=>dut.date===iso).flatMap(d=>d.names);
     if(dayDuty.length){
+      // 내용 있을 때: 관리자/뷰어 모두 표시
       dutyCell.innerHTML=`<span class="duty-label">📋</span><span class="duty-name" onclick="${IS_ADMIN?`openDutyModal('${iso}')`:''}">${dayDuty.join(', ')}</span>`;
     } else if(IS_ADMIN){
+      // 내용 없고 관리자: + 추가 버튼
       dutyCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${iso}')">+ 상담실</span>`;
     }
+    // 내용 없고 뷰어: 아무것도 표시 안 함 (빈 셀)
     grid.appendChild(dutyCell);
   });
 
