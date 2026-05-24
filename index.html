@@ -16,10 +16,10 @@
   --slot:24px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-bg);color:var(--txt);min-height:100vh}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
 
 /* HEADER */
-header{background:var(--w);border-bottom:1px solid var(--bdr);padding:13px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:300}
+header{background:var(--w);border-bottom:1px solid var(--bdr);padding:13px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:300;isolation:isolate}
 .logo h1{font-size:18px;font-weight:700;letter-spacing:-.5px}
 .logo p{font-size:11px;color:var(--txt2);margin-top:1px}
 .hbtns{display:flex;gap:6px;align-items:center}
@@ -31,7 +31,7 @@ header{background:var(--w);border-bottom:1px solid var(--bdr);padding:13px 24px;
 
 
 /* NAV BAR */
-.nav-bar{background:var(--w);border-bottom:1px solid var(--bdr);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:200}
+.nav-bar{background:var(--w);border-bottom:1px solid var(--bdr);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:200;backdrop-filter:blur(0)}
 .nav-center{display:flex;align-items:center;gap:10px}
 .nav-arrow{background:none;border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;color:var(--txt2)}
 .nav-arrow:hover{background:var(--gray-bg)}
@@ -163,13 +163,7 @@ main{padding:16px 24px}
 .duty-name:hover{text-decoration:underline}
 .duty-empty{font-size:10px;color:#ccc;cursor:pointer}
 .duty-empty:hover{color:var(--txt2)}
-.day-holiday-banner{
-  position:sticky;left:48px;
-  font-size:10px;font-weight:600;color:#922020;
-  background:#FEE9E9;border-bottom:1px solid #E05252;
-  padding:3px 8px;display:flex;align-items:center;gap:5px;
-  z-index:8;
-}
+
 
 /* Legend */
 .legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -274,7 +268,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   .nav-label{font-size:12px;min-width:120px}
   .filters{gap:4px;justify-content:center}
   .chip{font-size:10px;padding:3px 9px}
-  .sep{width:1px;height:14px}
+  .sep{display:block;width:100%;height:0;border:none}
 
   /* 메인 */
   main{padding:10px 10px}
@@ -344,7 +338,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 <header>
   <div class="logo">
     <h1>CODE3 강좌 시간표</h1>
-    <p id="course-count">강좌 0개</p>
+    
   </div>
   <div class="hbtns">
 
@@ -355,10 +349,10 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
     <button id="admin-login-btn" class="btn" onclick="adminLogin()" style="display:none">🔐 관리자</button>
   </div>
 </header>
-<div id="viewer-bar" style="display:none;background:var(--blue-l);border-bottom:1px solid var(--blue-m);padding:5px 24px;font-size:11px;color:var(--blue-d);text-align:center">
+<div id="viewer-bar" style="display:none;background:var(--blue-l);border-bottom:1px solid var(--blue-m);padding:5px 24px;font-size:11px;color:var(--blue-d);text-align:center;position:sticky;top:0;z-index:199;">
   👁 읽기 전용 · 강좌 수정은 관리자에게 문의하세요
 </div>
-<div class="viewer-limit-banner" id="viewer-limit-banner">
+<div class="viewer-limit-banner" id="viewer-limit-banner" style="position:sticky;top:0;z-index:198;">
   ⚠ 3주 이전/이후 일정은 확인이 어렵습니다. 자세한 내용은 관리자에게 문의해 주세요.
 </div>
 
@@ -705,7 +699,7 @@ async function sheetPost(action, data){
   });
 }
 // holidays는 위에서 선언됨
-function updateCount(){document.getElementById('course-count').textContent=`강좌 ${courses.length}개`}
+function updateCount(){}
 
 async function load(){
   if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'){
@@ -1069,7 +1063,7 @@ function render(){
   // ── 4. 헤더 행 ──
   const corner=document.createElement('div');
   corner.className='gh';
-  corner.style.cssText='grid-column:1;grid-row:1;position:sticky;left:0;z-index:15;background:#FAFAF8;font-size:10px;color:#aaa;font-weight:400;text-align:right;padding:0 6px 0 0;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);display:flex;align-items:center;justify-content:flex-end;';
+  corner.style.cssText='grid-column:1;grid-row:1;position:sticky;left:0;z-index:15;background:#FAFAF8;font-size:10px;color:#aaa;font-weight:400;text-align:right;padding:0 6px 0 0;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;';
   corner.textContent='날짜';
   grid.appendChild(corner);
 
@@ -1109,7 +1103,7 @@ function render(){
   // ── 3-1. 스터디카페 행 (row 2) ──
   // corner
   const cafeCorner=document.createElement('div');
-  cafeCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+  cafeCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:center;';
   cafeCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">스터디</span>';
   grid.appendChild(cafeCorner);
 
@@ -1148,7 +1142,7 @@ function render(){
   // ── 4. 상담실 행 ──
   // corner cell
   const dutyCorner=document.createElement('div');
-  dutyCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+  dutyCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:center;';
   dutyCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">상담실</span>';
   grid.appendChild(dutyCorner);
 
@@ -1219,7 +1213,7 @@ function render(){
   });
 
   // ── 5. 시간 셀 + 강좌 셀 ──
-  const ROW_OFFSET=5; // row 1=헤더, row 2=스터디카페, row 3=상담실, row 4=근무시간, row 5~=시간슬롯
+  const ROW_OFFSET=IS_ADMIN?5:4; // 관리자: 헤더+스터디+상담실+근무+슬롯 / 뷰어: 헤더+스터디+상담실+슬롯
   for(let s=0;s<TOTAL_SLOTS;s++){
     const mins=START_H*60+s*SLOT_MIN;
     const hh=Math.floor(mins/60),mm=mins%60;
@@ -1267,6 +1261,7 @@ function render(){
 
         laneCourses.forEach(c=>{
           // 요일별 시간 오버라이드
+          const kr=dayKr(d);
           const dtKey=kr; // kr = 요일 한글
           const dt=c.dayTimes&&c.dayTimes[dtKey];
           const sm=toMins(dt?dt.start:c.start), em=toMins(dt?dt.end:c.end);
