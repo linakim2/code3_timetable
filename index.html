@@ -71,8 +71,8 @@ main{padding:16px 24px}
   position:sticky;top:0;z-index:10;box-shadow:0 1px 0 var(--bdr);
 }
 .gh:last-child{border-right:none}
-.day-sep{border-right:2px solid var(--bdr) !important}
-.gh.day-sep{border-right:2px solid var(--bdr) !important}
+.day-sep{border-right:3px solid #999590 !important}
+.gh.day-sep{border-right:3px solid #999590 !important}
 .gh.today-head{color:var(--blue-d);background:var(--blue-l)}
 .gh .sub{font-size:10px;font-weight:400;opacity:.7;display:block;margin-top:1px}
 
@@ -81,10 +81,11 @@ main{padding:16px 24px}
   background:#FAFAF8;
   border-bottom:1px solid #F0EEE9;
   border-right:1px solid var(--bdr);
-  font-size:9px;color:#ccc;
-  padding:1px 5px 0 0;text-align:right;
-  height:var(--slot);line-height:1.2;
+  font-size:10px;color:#aaa;font-weight:400;
+  padding:0 6px 0 0;text-align:right;
+  height:var(--slot);line-height:var(--slot);
   position:sticky;left:0;z-index:5;
+  white-space:nowrap;
 }
 
 /* Day cells */
@@ -94,6 +95,8 @@ main{padding:16px 24px}
   position:relative;
   height:var(--slot);
   cursor:pointer;
+  overflow:hidden;
+  min-width:0;
 }
 .dc:last-child{border-right:none}
 .dc:hover::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.025);pointer-events:none}
@@ -101,30 +104,34 @@ main{padding:16px 24px}
 
 /* EVENTS */
 .ev{
-  position:absolute;
-  border-radius:4px;padding:4px 5px 3px;
-  font-size:9.5px;line-height:1.3;cursor:pointer;
+  border-radius:8px;padding:6px 7px 5px;
+  font-size:9.5px;line-height:1.35;cursor:pointer;
   overflow:hidden;z-index:2;
-  transition:opacity .12s,box-shadow .12s;
-  top:1px;bottom:1px;
-  display:flex;flex-direction:column;gap:1px;
+  transition:opacity .15s,box-shadow .15s,transform .1s;
+  display:flex;flex-direction:column;gap:2px;
   justify-content:flex-start;
   align-items:stretch;
+  box-sizing:border-box;
+  min-width:0;
+  border-left:none !important;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+  align-self:stretch;
 }
-.ev:hover{opacity:.82;box-shadow:0 2px 10px rgba(0,0,0,.13);z-index:20}
-.ev-type-clinic{background:#EBEBEB !important;border-left-color:#999 !important;color:#444 !important}
-.ev-type-event{background:#E1F5EE !important;border-left-color:#1D9E75 !important;color:#085041 !important}
+.ev:hover{opacity:.88;box-shadow:0 3px 12px rgba(0,0,0,.15);transform:translateY(-1px);z-index:20}
+.ev-type-clinic{background:#E8E8E8 !important;color:#555 !important;border-left:none !important;position:relative;overflow:hidden}
+.ev-type-clinic::before{content:'';position:absolute;top:0;left:0;width:4px;height:40%;border-radius:8px 0 4px 0;opacity:.8;background:var(--clinic-accent,#888)}
+.ev-type-event{background:#C8F0E0 !important;color:#085041 !important;border-left:none !important}
 .ev.faded{opacity:.25}
-.ev-국어{background:var(--red-l);color:var(--red-d);border-left:2.5px solid var(--red-m)}
-.ev-수학{background:var(--blue-l);color:var(--blue-d);border-left:2.5px solid var(--blue-m)}
-.ev-과탐{background:var(--violet-l);color:var(--violet-d);border-left:2.5px solid var(--violet-m)}
-.ev-사탐{background:var(--amber-l);color:var(--amber-d);border-left:2.5px solid var(--amber-m)}
-.ev-기타{background:#FAEEDA;color:#633806;border-left:2.5px solid #BA7517}
+.ev-국어{background:#FADADD;color:#8B1A2B}
+.ev-수학{background:#D6E8FA;color:#1A4F7A}
+.ev-과탐{background:#E0D6F9;color:#3D2080}
+.ev-사탐{background:#FFF0CC;color:#7A4F00}
+.ev-기타{background:#FFE8CC;color:#7A3F00}
 /* event inner layout */
 .ev-top{display:flex;align-items:flex-start;justify-content:space-between;gap:3px}
-.ev-name{font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.ev-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .ev-badge{font-size:8px;font-weight:500;padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;opacity:.9}
-.badge-수업  {background:rgba(0,0,0,.08)}
+.badge-수업  {background:rgba(0,0,0,.1);border-radius:4px}
 .badge-클리닉{background:rgba(0,0,0,.13)}
 .badge-특강  {background:rgba(200,140,0,.2)}
 .badge-설명회{background:rgba(150,0,200,.15)}
@@ -321,14 +328,14 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   👁 읽기 전용 · 강좌 수정은 관리자에게 문의하세요
 </div>
 <div class="viewer-limit-banner" id="viewer-limit-banner">
-  ⚠ 3주 이전 일정은 확인이 어렵습니다. 자세한 내용은 관리자에게 문의해 주세요.
+  ⚠ 3주 이전/이후 일정은 확인이 어렵습니다. 자세한 내용은 관리자에게 문의해 주세요.
 </div>
 
 <div class="nav-bar">
   <div class="nav-center">
     <button class="nav-arrow" id="nav-prev" onclick="navigate(-1)">&#8592;</button>
     <span class="nav-label" id="nav-label"></span>
-    <button class="nav-arrow" onclick="navigate(1)">&#8594;</button>
+    <button class="nav-arrow" id="nav-next" onclick="navigate(1)">&#8594;</button>
     <button class="nav-today" onclick="goToday()">오늘</button>
   </div>
   <div class="filters">
@@ -754,12 +761,16 @@ function computeLanes(dayCourses){
 
 function navigate(dir){
   const next=dateAddDays(getWeekStart(curDate),dir*7);
-  // 뷰어: 30일 이전 주로 이동 불가
-  if(!IS_ADMIN && dir<0){
-    const limit=new Date();
-    limit.setHours(0,0,0,0);
-    limit.setDate(limit.getDate()-21);
-    if(next<limit) return;
+  if(!IS_ADMIN){
+    const today0=new Date(); today0.setHours(0,0,0,0);
+    if(dir<0){
+      const pastLimit=new Date(today0); pastLimit.setDate(pastLimit.getDate()-21);
+      if(next<pastLimit) return;
+    }
+    if(dir>0){
+      const futureLimit=new Date(today0); futureLimit.setDate(futureLimit.getDate()+21);
+      if(next>futureLimit) return;
+    }
   }
   curDate=next;
   render();
@@ -814,6 +825,17 @@ function updateNavLabel(){
     prevBtn.disabled=disabled;
     prevBtn.style.opacity=disabled?'0.3':'1';
     prevBtn.style.cursor=disabled?'not-allowed':'pointer';
+    // 우측 화살표 비활성화 (미래 3주 이후)
+    const nextBtn=document.getElementById('nav-next');
+    if(nextBtn){
+      const futureLimit=new Date(); futureLimit.setHours(0,0,0,0);
+      futureLimit.setDate(futureLimit.getDate()+21);
+      const nextWeek=dateAddDays(getWeekStart(new Date(days[0])),7);
+      const nextDisabled=nextWeek>futureLimit;
+      nextBtn.disabled=nextDisabled;
+      nextBtn.style.opacity=nextDisabled?'0.3':'1';
+      nextBtn.style.cursor=nextDisabled?'not-allowed':'pointer';
+    }
     // 현재 주가 3주 이전이면 배너 표시
     const banner=document.getElementById('viewer-limit-banner');
     if(banner){
@@ -821,7 +843,9 @@ function updateNavLabel(){
       const limitStart=new Date();
       limitStart.setHours(0,0,0,0);
       limitStart.setDate(limitStart.getDate()-21);
-      banner.style.display=weekStart<limitStart?'block':'none';
+      const futureLimit2=new Date(); futureLimit2.setHours(0,0,0,0);
+      futureLimit2.setDate(futureLimit2.getDate()+21);
+      banner.style.display=(weekStart<limitStart||weekStart>futureLimit2)?'block':'none';
     }
   }
 }
@@ -849,12 +873,12 @@ function render(){
   const dayGroups=days.map(d=>{
     const kr=dayKr(d);
     const iso=isoDate(d);
-    // 뷰어: 30일 이전 날짜는 빈 열로 표시
+    // 뷰어: 과거 3주 이전 / 미래 3주 이후는 빈 열
     if(!IS_ADMIN){
-      const limit=new Date();
-      limit.setHours(0,0,0,0);
-      limit.setDate(limit.getDate()-21);
-      if(d<limit) return computeLanes([]);
+      const today0=new Date(); today0.setHours(0,0,0,0);
+      const pastLimit=new Date(today0); pastLimit.setDate(pastLimit.getDate()-21);
+      const futureLimit=new Date(today0); futureLimit.setDate(futureLimit.getDate()+21);
+      if(d<pastLimit||d>futureLimit) return computeLanes([]);
     }
     const dayCourses=courses.filter(c=>{
       if(!c.days.includes(kr)) return false;
@@ -890,6 +914,7 @@ function render(){
   // 강좌 없는 요일도 최소 1열 확보 (빈 날 표시용)
   const colSpec=[{type:'time'}];
   days.forEach((_,di)=>{
+    const isLast=di===days.length-1;
     let added=0;
     SUBJ_ORDER.forEach(subj=>{
       const lanes=dayGroups[di][subj]||[];
@@ -899,20 +924,20 @@ function render(){
         added++;
       }
     });
-    // 강좌 없는 요일: 빈 열 1개 추가 (헤더·당직 표시용)
     if(added===0){
-      colSpec.push({type:'lane',di,subject:'',li:0,isEmpty:true,isLast:true});
+      colSpec.push({type:'lane',di,subject:'',li:0,isEmpty:true,isLast:false});
     }
-  });
-  // 각 요일의 마지막 lane에 isLast 표시 (날짜 구분선용)
-  days.forEach((_,di)=>{
-    const dCols=colSpec.filter(s=>s.type==='lane'&&s.di===di);
-    if(dCols.length) dCols[dCols.length-1].isLast=true;
+    // 날짜 사이: 빈열 + 구분선열 + 빈열 (마지막 날짜 제외)
+    if(!isLast){
+      colSpec.push({type:'gap'});      // 빈열
+      colSpec.push({type:'divider'});  // 구분선
+      colSpec.push({type:'gap'});      // 빈열
+    }
   });
   const activeSubjects=SUBJ_ORDER.filter(s=>days.some((_,di)=>(dayGroups[di][s]||[]).length>0));
 
   // CSS grid columns
-  const colWidths=colSpec.map(s=>s.type==='time'?'48px':'minmax(90px,1fr)');
+  const colWidths=colSpec.map(s=>s.type==='time'?'48px':s.type==='gap'?'8px':s.type==='divider'?'2px':'minmax(90px,1fr)');
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
   document.documentElement.style.setProperty('--day-cols', colWidths.length-1);
@@ -921,8 +946,17 @@ function render(){
 
   // ── 4. 헤더 행 ──
   const corner=document.createElement('div');
-  corner.className='gh';corner.style.gridColumn='1';corner.style.gridRow='1';
+  corner.className='gh';
+  corner.style.cssText='grid-column:1;grid-row:1;position:sticky;left:0;z-index:15;background:#FAFAF8;font-size:10px;color:#aaa;font-weight:400;text-align:right;padding:0 6px 0 0;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);display:flex;align-items:center;justify-content:flex-end;';
+  corner.textContent='날짜';
   grid.appendChild(corner);
+
+  colSpec.forEach((sp,ci)=>{
+    if(sp.type!=='gap'&&sp.type!=='divider') return;
+    const hc=document.createElement('div');
+    hc.style.cssText=`grid-column:${specCol(ci)};grid-row:1;background:${sp.type==='divider'?'#B0ADA6':'#FAFAF8'};border-bottom:1px solid var(--bdr)`;
+    grid.appendChild(hc);
+  });
 
   days.forEach((d,di)=>{
     const kr=dayKr(d);
@@ -932,8 +966,7 @@ function render(){
     const firstCI=dayCols[0].i, lastCI=dayCols[dayCols.length-1].i;
     const h=document.createElement('div');
     const isAllHoliday=holidays.some(h=>h.date===isoDate(d)&&h.scope==='all');
-    const isLastDay=di<days.length-1;
-    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'')+(isLastDay?' day-sep':'');
+    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'');
     if(isAllHoliday) h.style.cssText+='background:#FEE9E9;color:#922020;';
     h.style.gridColumn=`${specCol(firstCI)} / ${specCol(lastCI)+1}`;
     h.style.gridRow='1';
@@ -946,19 +979,26 @@ function render(){
   // ── 4. 당직 행 ──
   // corner cell
   const dutyCorner=document.createElement('div');
-  dutyCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;';
-  dutyCorner.innerHTML='<span style="font-size:9px;color:#bbb">당직</span>';
+  dutyCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+  dutyCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">당직</span>';
   grid.appendChild(dutyCorner);
+
+  // gap/divider 당직 셀
+  colSpec.forEach((sp,ci)=>{
+    if(sp.type!=='gap'&&sp.type!=='divider') return;
+    const dc=document.createElement('div');
+    dc.style.cssText=`grid-column:${specCol(ci)};grid-row:2;background:${sp.type==='divider'?'#B0ADA6':'#F7F6F3'};border-bottom:1px solid var(--bdr)`;
+    grid.appendChild(dc);
+  });
 
   // 날짜별 당직 셀
   let dutyColOffset=2;
   days.forEach((d,di)=>{
     const iso=isoDate(d);
     const isToday=d.getTime()===today.getTime();
-    const n=activeSubjects.reduce((sum,s)=>sum+maxLanesPerSubj[s],0)||1;
     const firstCI=colSpec.findIndex(sp=>sp.type==='lane'&&sp.di===di);
-    const lastCI=[...colSpec].reverse().findIndex(sp=>sp.type==='lane'&&sp.di===di);
-    const lastCIActual=colSpec.length-1-lastCI;
+    const lastCI=[...colSpec].map((sp,i)=>sp.type==='lane'&&sp.di===di?i:-1).filter(i=>i>=0).pop()??firstCI;
+    const lastCIActual=lastCI;
 
     const dutyCell=document.createElement('div');
     dutyCell.className='duty-row'+(isToday?' today-col':'');
@@ -981,15 +1021,26 @@ function render(){
 
     const tc=document.createElement('div');
     tc.className='tc';tc.style.gridRow=row;tc.style.gridColumn='1';
-    tc.textContent=mm===0?hh+'시':'';
+    tc.textContent=mm===0?String(hh).padStart(2,'0')+':00':'';
     grid.appendChild(tc);
 
     colSpec.forEach((sp,ci)=>{
+      if(sp.type==='gap'){
+        const g=document.createElement('div');
+        g.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:var(--gray-bg)`;
+        grid.appendChild(g); return;
+      }
+      if(sp.type==='divider'){
+        const dv=document.createElement('div');
+        dv.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:#B0ADA6`;
+        grid.appendChild(dv); return;
+      }
       if(sp.type!=='lane') return;
       const cssCol=specCol(ci);
       const isToday=days[sp.di]&&days[sp.di].getTime()===today.getTime();
       const cell=document.createElement('div');
-      cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'')+(sp.isLast?' day-sep':'');
+      cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'');
+
       cell.style.gridRow=row;cell.style.gridColumn=cssCol;
       if(sp.isEmpty) cell.style.background='rgba(0,0,0,.012)';
       const kr=dayKr(days[sp.di]);
@@ -1021,10 +1072,15 @@ function render(){
           ev.className=`ev ev-${sc}`;
           ev.style.gridRow=`${startRow} / ${startRow+spanRows}`;
           ev.style.gridColumn=cssCol;
-          ev.style.position='relative';
-          ev.style.top='1px';ev.style.bottom='1px';
-          ev.style.left='2px';ev.style.right='2px';
+          ev.style.margin='2px 3px';
           ev.style.height='auto';
+          ev.style.minHeight='0';
+          ev.style.overflow='hidden';
+          ev.style.width='auto';
+          ev.style.minWidth='0';
+          ev.style.maxWidth='100%';
+          ev.style.boxSizing='border-box';
+          ev.style.overflow='hidden';
           // ── 먼저 선언 ──
           const kr=dayKr(d);
           const dateStr2=isoDate(d);
@@ -1034,7 +1090,12 @@ function render(){
             (h.scope==='all' || (h.scope==='course' && h.courseId===c.id))
           );
           ev.dataset.id=c.id;ev.dataset.subject=c.subject;ev.dataset.type=c.type;
-          if(c.type==='클리닉') ev.classList.add('ev-type-clinic');
+          if(c.type==='클리닉'){
+            ev.classList.add('ev-type-clinic');
+            const accentMap={국어:'var(--red-m)',수학:'var(--blue-m)',과탐:'var(--violet-m)',사탐:'var(--amber-m)'};
+            const accent=accentMap[c.subject]||'#888';
+            ev.style.setProperty('--clinic-accent',accent);
+          }
           if(c.type==='설명회') ev.classList.add('ev-type-event');
           ev.innerHTML=`
             <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${c.start}–${c.end}</span>
