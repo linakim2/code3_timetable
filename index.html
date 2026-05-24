@@ -629,7 +629,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6dtWR5VBEFnjneL-8-rPjcGVm2Saz0SiOTE9noaQeb71HE8yrcRLxa0j9g6-n5i6vzA/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziH1UJ4qX1EuLQQu7uJK8p_15Zu0MQoKakCM-dt8The9PMXHXJU8Ay45OuFu2tUusZAw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -983,19 +983,17 @@ function render(){
       const futureLimit=new Date(today0); futureLimit.setDate(futureLimit.getDate()+21);
       if(d<pastLimit||d>futureLimit) return computeLanes([]);
     }
+    const sameDayReplaces=replaces.filter(r=>r.courseId&&r.origDate===iso&&r.sameDay&&r.replDate===iso);
     const dayCourses=courses.filter(c=>{
       if(!c.days.includes(kr)) return false;
       if(!courseActiveOn(c,iso)) return false;
       if(replaces.some(r=>r.courseId===c.id&&r.origDate===iso&&!r.sameDay)) return false;
-      // 같은 날 변경: 원래 강좌 숨기고 변경된 버전으로 표시
       if(sameDayReplaces.some(r=>r.courseId===c.id)) return false;
       if(!activeSubs.has('전체')&&!activeSubs.has(c.subject)) return false;
       if(!activeTypes.has('전체')&&!activeTypes.has(c.type)) return false;
       return true;
     });
     const replOn=getReplacesOn(iso);
-    // 같은 날 변경: 원래 강좌 제거 후 변경된 정보로 대체
-    const sameDayReplaces=replaces.filter(r=>r.courseId&&r.origDate===iso&&r.sameDay&&r.replDate===iso);
     // 같은 날 변경 강좌
     const sameDayCourses=sameDayReplaces.map(r=>{
       const orig=courses.find(c=>c.id===r.courseId);
@@ -1099,19 +1097,58 @@ function render(){
     const dateStr=`${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
     const allH=holidays.find(h=>h.date===isoDate(d)&&h.scope==='all');
     const dayInfo=getDateInfo(isoDate(d));
-    const infoHtml=dayInfo.map(e=>`<span style="font-size:9px;display:block;margin-top:1px;${e.type==='공휴일'?'color:#E05252':e.type==='모의고사'?'color:#7F77DD':'color:#888'}">${e.content}</span>`).join('');
-    const cafe=getStudyCafeHours(isoDate(d));
-    const cafeHtml=`<span style="font-size:9px;display:block;margin-top:2px;color:${cafe.isCustom?'#E05252':'#1D9E75'};font-weight:500">☕ ${cafe.hours}${cafe.isCustom?' ✎':''}</span>`;
-    h.innerHTML=`${kr}요일<span class="sub">${dateStr}${allH?' 🚫':''}</span>${cafeHtml}${infoHtml}${allH&&allH.reason?`<span style="font-size:9px;color:#922020;display:block">${allH.reason}</span>`:''}`;
+    const infoHtml=dayInfo.map(e=>`<span style="font-size:9px;display:block;margin-top:1px;${
+      e.type==='공휴일'?'color:#E05252;font-weight:700':
+      e.type==='모의고사'?'color:var(--txt);font-weight:700':'color:#888;font-weight:500'}">${e.content}</span>`).join('');
+    h.innerHTML=`<span style="font-size:12px;font-weight:500">${dateStr} (${kr})</span>${infoHtml}${allH?`<span style="font-size:9px;color:#922020;display:block">🚫 ${allH.reason||'휴강'}</span>`:''}`;
     if(IS_ADMIN) h.style.cursor='pointer';
     if(IS_ADMIN) h.addEventListener('click',()=>openEventModal(isoDate(d)));
     grid.appendChild(h);
   });
 
+  // ── 3-1. 스터디카페 행 (row 2) ──
+  // corner
+  const cafeCorner=document.createElement('div');
+  cafeCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+  cafeCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">스터디</span>';
+  grid.appendChild(cafeCorner);
+
+  // gap/divider 스터디카페 셀
+  colSpec.forEach((sp,ci)=>{
+    if(sp.type!=='gap'&&sp.type!=='divider') return;
+    const sc=document.createElement('div');
+    sc.style.cssText=`grid-column:${specCol(ci)};grid-row:2;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+    grid.appendChild(sc);
+  });
+
+  days.forEach((d,di)=>{
+    const isToday=d.getTime()===today.getTime();
+    const dayCols=colSpec.map((s,i)=>({s,i})).filter(({s})=>s.type==='lane'&&s.di===di);
+    if(!dayCols.length) return;
+    const firstCI=dayCols[0].i;
+    const lastCIActual2=[...colSpec].map((s,i)=>s.type==='lane'&&s.di===di?i:-1).filter(i=>i>=0).pop()??firstCI;
+
+    const cafe=getStudyCafeHours(isoDate(d));
+    const defaultCafe=getDefaultCafeHours(isoDate(d));
+    const cafeCell=document.createElement('div');
+    cafeCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual2)+1};grid-row:2;background:${isToday?'rgba(55,138,221,.04)':'#FAFAF8'};border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);padding:3px 8px;display:flex;align-items:center;gap:5px;`;
+    if(cafe.isCustom){
+      const isClose=cafe.hours==='휴무';
+      if(isClose){
+        cafeCell.innerHTML=`<span style="font-size:10px;font-weight:700;color:#E05252">휴무</span>`;
+      } else {
+        cafeCell.innerHTML=`<span style="font-size:9px;color:#bbb;text-decoration:line-through">${defaultCafe.hours}</span><span style="font-size:10px;font-weight:500;color:#E05252">${cafe.hours}</span>`;
+      }
+    } else {
+      cafeCell.innerHTML=`<span style="font-size:10px;font-weight:500;color:#1D9E75">${cafe.hours}</span>`;
+    }
+    grid.appendChild(cafeCell);
+  });
+
   // ── 4. 상담실 행 ──
   // corner cell
   const dutyCorner=document.createElement('div');
-  dutyCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+  dutyCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);min-height:26px;position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
   dutyCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">상담실</span>';
   grid.appendChild(dutyCorner);
 
@@ -1119,14 +1156,14 @@ function render(){
   colSpec.forEach((sp,ci)=>{
     if(sp.type!=='gap'&&sp.type!=='divider') return;
     const dc=document.createElement('div');
-    dc.style.cssText=`grid-column:${specCol(ci)};grid-row:2;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+    dc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
     grid.appendChild(dc);
   });
 
   // ── 근무시간 행 (관리자만) ──
   if(IS_ADMIN){
     const workCorner=document.createElement('div');
-    workCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
+    workCorner.style.cssText='grid-column:1;grid-row:4;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
     workCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">근무</span>';
     grid.appendChild(workCorner);
 
@@ -1134,7 +1171,7 @@ function render(){
     colSpec.forEach((sp,ci)=>{
       if(sp.type!=='gap'&&sp.type!=='divider') return;
       const sc=document.createElement('div');
-      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:4;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
       grid.appendChild(sc);
     });
 
@@ -1147,7 +1184,7 @@ function render(){
 
       const workCell=document.createElement('div');
       workCell.className='work-row'+(isToday?' today-col':'');
-      workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:3;`;
+      workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:4;`;
 
       // 이 요일 근무하는 선생님들
       const effective=workHours.filter(w=>w.day===kr);
@@ -1171,7 +1208,7 @@ function render(){
 
     const dutyCell=document.createElement('div');
     dutyCell.className='duty-row'+(isToday?' today-col':'');
-    dutyCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual)+1};grid-row:2;`;
+    dutyCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual)+1};grid-row:3;`;
     const dayDuty=duty.filter(dut=>dut.date===iso).flatMap(d=>d.names);
     if(dayDuty.length){
       dutyCell.innerHTML=`<span class="duty-label">📋</span><span class="duty-name" onclick="${IS_ADMIN?`openDutyModal('${iso}')`:''}">${dayDuty.join(', ')}</span>`;
@@ -1182,7 +1219,7 @@ function render(){
   });
 
   // ── 5. 시간 셀 + 강좌 셀 ──
-  const ROW_OFFSET=4; // row 1=day header, row 2=duty row, row 3=work row, row 4~=time slots
+  const ROW_OFFSET=5; // row 1=헤더, row 2=스터디카페, row 3=상담실, row 4=근무시간, row 5~=시간슬롯
   for(let s=0;s<TOTAL_SLOTS;s++){
     const mins=START_H*60+s*SLOT_MIN;
     const hh=Math.floor(mins/60),mm=mins%60;
@@ -1335,7 +1372,7 @@ const KR_HOLIDAYS={
   '2025-06-06':'현충일','2025-08-15':'광복절','2025-09-06':'추석 연휴','2025-09-07':'추석',
   '2025-09-08':'추석 연휴','2025-10-03':'개천절','2025-10-09':'한글날','2025-12-25':'크리스마스',
   '2026-01-01':'신정','2026-01-28':'설날 연휴','2026-01-29':'설날','2026-01-30':'설날 연휴',
-  '2026-03-01':'삼일절','2026-05-05':'어린이날','2026-05-24':'부처님오신날',
+  '2026-03-01':'삼일절','2026-05-05':'어린이날','2026-05-15':'부처님오신날',
   '2026-06-06':'현충일','2026-08-15':'광복절','2026-09-24':'추석 연휴','2026-09-25':'추석',
   '2026-09-26':'추석 연휴','2026-10-03':'개천절','2026-10-09':'한글날','2026-12-25':'크리스마스',
 };
@@ -1359,6 +1396,14 @@ const STUDY_CAFE_HOURS={
   holiday:'09:00~22:00',
 };
 
+function getDefaultCafeHours(iso){
+  if(KR_HOLIDAYS[iso]) return {hours:STUDY_CAFE_HOURS.holiday};
+  const d=new Date(iso);
+  const day=d.getDay();
+  if(day===6) return {hours:STUDY_CAFE_HOURS.saturday};
+  if(day===0) return {hours:STUDY_CAFE_HOURS.sunday};
+  return {hours:STUDY_CAFE_HOURS.weekday};
+}
 function getStudyCafeHours(iso){
   // 직접 설정된 시간 우선
   const custom=dateEvents.find(e=>e.date===iso&&e.type==='운영시간');
