@@ -1167,29 +1167,6 @@ function render(){
     });
   }
 
-  } // 상담실 행 끝 (비활성화)
-  let dutyColOffset=2;
-  days.forEach((d,di)=>{
-    const iso=isoDate(d);
-    const isToday=d.getTime()===today.getTime();
-    const firstCI=colSpec.findIndex(sp=>sp.type==='lane'&&sp.di===di);
-    const lastCI=[...colSpec].map((sp,i)=>sp.type==='lane'&&sp.di===di?i:-1).filter(i=>i>=0).pop()??firstCI;
-    const lastCIActual=lastCI;
-
-    const dutyCell=document.createElement('div');
-    dutyCell.className='duty-row'+(isToday?' today-col':'');
-    dutyCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual)+1};grid-row:3;`;
-    const dayDuty=duty.filter(dut=>dut.date===iso).flatMap(d=>d.names);
-    if(dayDuty.length){
-      // 내용 있을 때: 관리자/뷰어 모두 표시
-      dutyCell.innerHTML=`<span class="duty-label">📋</span><span class="duty-name" onclick="${IS_ADMIN?`openDutyModal('${iso}')`:''}">${dayDuty.join(', ')}</span>`;
-    } else if(IS_ADMIN){
-      // 내용 없고 관리자: + 추가 버튼
-      dutyCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${iso}')">+ 상담실</span>`;
-    }
-    // 내용 없고 뷰어: 아무것도 표시 안 함 (빈 셀)
-    grid.appendChild(dutyCell);
-  });
 
   // ── 5. 시간 셀 + 강좌 셀 ──
   const ROW_OFFSET=4; // 헤더+스터디+특이사항+슬롯
