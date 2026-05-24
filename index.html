@@ -206,10 +206,10 @@ main{padding:16px 24px}
 
 footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 .work-row{
-  display:flex;align-items:flex-start;flex-direction:column;gap:2px;
+  display:flex;align-items:center;flex-direction:row;flex-wrap:wrap;gap:4px;
   padding:4px 8px;font-size:10px;
   background:#FAFAF8;border-bottom:1px solid var(--bdr);
-  border-right:1px solid var(--bdr);min-height:36px;overflow:hidden;
+  border-right:1px solid var(--bdr);min-height:26px;overflow:hidden;
 }
 .work-row.today-col{background:rgba(55,138,221,.04)}
 .work-item{display:flex;align-items:center;gap:4px;white-space:nowrap}
@@ -221,7 +221,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 .day-time-toggle{font-size:10px;color:var(--blue-m);cursor:pointer;padding:2px 6px;border:1px solid var(--blue-m);border-radius:4px;white-space:nowrap}
 .day-time-toggle:hover{background:var(--blue-l)}
 .day-time-inputs{display:flex;align-items:center;gap:4px;font-size:11px}
-.day-time-inputs input[type=time]{font-family:inherit;font-size:11px;padding:3px 5px;border:1px solid var(--bdr);border-radius:6px;width:90px;min-width:90px}
+.day-time-inputs input[type=time]{font-family:inherit;font-size:11px;padding:3px 5px;border:1px solid var(--bdr);border-radius:6px;width:110px;min-width:110px}
 
 /* 로딩 스피너 */
 .date-range-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -479,28 +479,30 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 <div class="overlay" id="event-overlay">
   <div class="modal" style="width:380px">
     <div class="mhd">
-      <h2>날짜 이벤트 등록</h2>
+      <h2>날짜 정보 수정</h2>
       <button class="xbtn" onclick="closeEventOverlay()">×</button>
     </div>
-    <p id="event-date-label" style="font-size:12px;color:var(--txt2);margin-bottom:14px"></p>
-    <input type="hidden" id="event-date-val">
     <div class="field">
-      <label>내용 *</label>
-      <input id="event-content" placeholder="예) 고3 전국모의고사, 학원 행사">
+      <label>날짜</label>
+      <input type="date" id="event-date-val">
     </div>
     <div class="field" style="margin-top:10px">
       <label>유형</label>
-      <select id="event-type">
-        <option value="기타">기타</option>
+      <select id="event-type" onchange="onEventTypeChange()">
+        <option value="운영시간">스터디카페 운영시간 변경</option>
+        <option value="기타">특이사항</option>
         <option value="공휴일">공휴일</option>
         <option value="모의고사">모의고사</option>
-        <option value="운영시간">☕ 스터디카페 운영시간 변경</option>
-        <option value="근무">📋 근무 특이사항</option>
       </select>
     </div>
+    <div class="field" style="margin-top:10px">
+      <label id="event-content-label">내용 *</label>
+      <input id="event-content" placeholder="예) 10:00~22:00">
+    </div>
     <div class="macts">
+      <button class="btn btn-danger" id="event-del-btn" onclick="deleteDateEvent()" style="margin-right:auto;display:none">삭제</button>
       <button class="btn" onclick="closeEventOverlay()">취소</button>
-      <button class="btn btn-p" onclick="saveDateEvent()">등록</button>
+      <button class="btn btn-p" onclick="saveDateEvent()">저장</button>
     </div>
   </div>
 </div>
@@ -1123,6 +1125,7 @@ function render(){
     } else {
       cafeCell.innerHTML=`<span style="font-size:10px;font-weight:500;color:#1D9E75">${cafe.hours}</span>`;
     }
+    if(IS_ADMIN){ cafeCell.style.cursor='pointer'; cafeCell.addEventListener('click',()=>{openEventModal(isoDate(d));document.getElementById('event-type').value='운영시간';onEventTypeChange();}); }
     grid.appendChild(cafeCell);
   });
 
@@ -1163,6 +1166,7 @@ function render(){
       } else if(IS_ADMIN){
         workCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${isoDate(d)}')">+ 추가</span>`;
       }
+      if(IS_ADMIN){ workCell.style.cursor='pointer'; workCell.addEventListener('click',()=>{openEventModal(isoDate(d));document.getElementById('event-type').value='기타';onEventTypeChange();}); }
       grid.appendChild(workCell);
     });
   }
@@ -1372,8 +1376,8 @@ function getDateInfo(iso){
   const result=[];
   if(KR_HOLIDAYS[iso]) result.push({content:KR_HOLIDAYS[iso],type:'공휴일'});
   if(MOCK_EXAMS[iso]) result.push({content:MOCK_EXAMS[iso],type:'모의고사'});
-  // Sheets에서 로드한 이벤트
-  dateEvents.filter(e=>e.date===iso).forEach(e=>result.push({content:e.content,type:e.type}));
+  // 공휴일/모의고사/기타만 헤더에 표시 (운영시간/근무는 별도 행에 표시)
+  dateEvents.filter(e=>e.date===iso&&e.type!=='운영시간'&&e.type!=='기타'&&e.type!=='근무').forEach(e=>result.push({content:e.content,type:e.type}));
   return result;
 }
 function showDP(e,c,day,isClosed=false,dateIso='',displayStart='',displayEnd=''){
@@ -1789,16 +1793,23 @@ function deleteDutyEntry(){
 }
 
 // ── DATE EVENT FUNCTIONS ──
+function onEventTypeChange(){
+  const type=document.getElementById('event-type').value;
+  const inp=document.getElementById('event-content');
+  const lbl=document.getElementById('event-content-label');
+  if(type==='운영시간'){inp.placeholder='예) 10:00~22:00';lbl.textContent='운영시간 *';}
+  else if(type==='기타'){inp.placeholder='예) 상담실 변경, 조기종강';lbl.textContent='특이사항 내용 *';}
+  else{inp.placeholder='예) 현충일, 고3 전국모의고사';lbl.textContent='내용 *';}
+}
 function openEventModal(dateIso){
-  document.getElementById('event-date-label').textContent=dateIso;
   document.getElementById('event-date-val').value=dateIso;
   document.getElementById('event-content').value='';
-  document.getElementById('event-type').value='기타';
-  document.getElementById('event-type').onchange=function(){
-    const inp=document.getElementById('event-content');
-    if(this.value==='운영시간') inp.placeholder='예) 10:00~22:00';
-    else inp.placeholder='예) 고3 전국모의고사, 학원 행사';
-  };
+  document.getElementById('event-type').value='운영시간';
+  // 기존 이벤트 불러오기
+  const existing=dateEvents.filter(e=>e.date===dateIso);
+  const delBtn=document.getElementById('event-del-btn');
+  delBtn.style.display=existing.length?'':'none';
+  onEventTypeChange();
   document.getElementById('event-overlay').classList.add('open');
 }
 function closeEventOverlay(){document.getElementById('event-overlay').classList.remove('open')}
@@ -1807,10 +1818,19 @@ function saveDateEvent(){
   const content=document.getElementById('event-content').value.trim();
   if(!content){alert('내용을 입력해주세요');return}
   const type=document.getElementById('event-type').value;
+  // 같은 날짜+유형 중복 제거
   if(type==='운영시간') dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type==='운영시간'));
+  else if(type==='기타') dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type==='기타'));
   dateEvents.push({date,content,type});
   closeEventOverlay();render();
   sheetPost('saveEvent',{date,content,type});
+}
+function deleteDateEvent(){
+  const date=document.getElementById('event-date-val').value;
+  const type=document.getElementById('event-type').value;
+  dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type===type));
+  closeEventOverlay();render();
+  sheetPost('deleteEvent',{date,type});
 }
 
 function openReplaceModal(courseId,origDate){
