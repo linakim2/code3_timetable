@@ -1156,7 +1156,7 @@ function render(){
       workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:3;`;
 
       // 특이사항: 상담실 + 근무 특이사항 통합 표시
-      const dayDutyW=duty.filter(dut=>dut.date===isoDate(d)).flatMap(d=>d.names);
+      const dayDutyW=duty.filter(dut=>dut.date===isoDate(d)).flatMap(dut=>dut.names);
       const customWork=dateEvents.filter(e=>e.date===isoDate(d)&&e.type==='근무');
       const items=[];
       if(dayDutyW.length) items.push(`<div class="work-item"><span class="work-teacher">${dayDutyW.join(', ')}</span></div>`);
