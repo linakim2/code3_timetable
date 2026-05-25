@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CODE3 강좌 시간표</title>
+<title>CODE3 시간표</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -338,7 +338,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 
 <header>
   <div class="logo">
-    <h1>CODE3 강좌 시간표</h1>
+    <h1>CODE3 시간표</h1>
     
   </div>
   <div class="hbtns">
@@ -1262,24 +1262,51 @@ function render(){
             ev.style.setProperty('--clinic-accent',accent);
           }
           if(c.type==='설명회') ev.classList.add('ev-type-event');
-          ev.innerHTML=`
-            <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${displayStart}–${displayEnd}</span>
-            <div class="ev-top">
-              <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
-                ${isReplace?'<span class="ev-badge badge-대체">대체</span>':''}
-                <span class="ev-badge badge-${c.type}">${c.type}</span>
+          // 높이에 따라 내용 축약 (30분=1슬롯 기준)
+          if(spanRows<=2){
+            // 매우 짧음: 시간+뱃지+강좌명만
+            ev.innerHTML=`
+              <span class="ev-time" style="font-size:8px;font-weight:600;opacity:.85">${displayStart}–${displayEnd}</span>
+              <div style="display:flex;align-items:center;gap:2px">
+                <span class="ev-badge badge-${c.type}" style="font-size:7px">${c.type}</span>
+                <span class="ev-name" style="font-size:9px">${c.name}</span>
               </div>
-              <span class="ev-name">${c.name}</span>
-            </div>
-            ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
-            ${isReplace&&c._origDate?`<span style="font-size:8px;color:var(--green-d);opacity:.85">↩ 원래 ${c._origDate}</span>`:''}
-            ${c.totalCount?(()=>{
-              const sn=calcSessionNum(c,dateStr2);
-              return `<span class="ev-time" style="opacity:.5">${sn?sn+'/':''}${c.totalCount}회</span>`;
-            })():''}
-            ${c.memo?`<span style="font-size:8px;opacity:.65;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.memo}</span>`:''}
-            ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
-          `;
+            `;
+          } else if(spanRows<=4){
+            // 짧음: 시간+뱃지+강좌명+선생님+강의실
+            ev.innerHTML=`
+              <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${displayStart}–${displayEnd}</span>
+              <div class="ev-top">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
+                  ${isReplace?'<span class="ev-badge badge-대체">대체</span>':''}
+                  <span class="ev-badge badge-${c.type}">${c.type}</span>
+                </div>
+                <span class="ev-name">${c.name}</span>
+              </div>
+              ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
+              ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
+            `;
+          } else {
+            // 충분히 김: 모든 정보 표시
+            ev.innerHTML=`
+              <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${displayStart}–${displayEnd}</span>
+              <div class="ev-top">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
+                  ${isReplace?'<span class="ev-badge badge-대체">대체</span>':''}
+                  <span class="ev-badge badge-${c.type}">${c.type}</span>
+                </div>
+                <span class="ev-name">${c.name}</span>
+              </div>
+              ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
+              ${isReplace&&c._origDate?`<span style="font-size:8px;color:var(--green-d);opacity:.85">↩ 원래 ${c._origDate}</span>`:''}
+              ${c.totalCount?(()=>{
+                const sn=calcSessionNum(c,dateStr2);
+                return `<span class="ev-time" style="opacity:.5">${sn?sn+'/':''}${c.totalCount}회</span>`;
+              })():''}
+              ${c.memo?`<span style="font-size:8px;opacity:.65;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.memo}</span>`:''}
+              ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
+            `;
+          }
         if(isClosed){
           ev.classList.add('ev-closed');
           const hbadge=document.createElement('span');
