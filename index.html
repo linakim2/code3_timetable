@@ -1264,13 +1264,10 @@ function render(){
           if(c.type==='설명회') ev.classList.add('ev-type-event');
           // 높이에 따라 내용 축약 (30분=1슬롯 기준)
           if(spanRows<=2){
-            // 매우 짧음: 시간+뱃지+강좌명만
+            // 매우 짧음: 시간+뱃지만
             ev.innerHTML=`
               <span class="ev-time" style="font-size:8px;font-weight:600;opacity:.85">${displayStart}–${displayEnd}</span>
-              <div style="display:flex;align-items:center;gap:2px">
-                <span class="ev-badge badge-${c.type}" style="font-size:7px">${c.type}</span>
-                <span class="ev-name" style="font-size:9px">${c.name}</span>
-              </div>
+              <span class="ev-badge badge-${c.type}" style="font-size:7px">${c.type}</span>
             `;
           } else if(spanRows<=4){
             // 짧음: 시간+뱃지+강좌명+선생님+강의실
