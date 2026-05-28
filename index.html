@@ -76,6 +76,7 @@ main{padding:16px 24px}
   position:sticky;top:0;z-index:10;box-shadow:0 1px 0 var(--bdr);
 }
 .gh:last-child{border-right:none}
+.gh-empty{background:transparent !important;border-bottom:none !important}
 .day-sep{border-right:3px solid #999590 !important}
 .gh.day-sep{border-right:3px solid #999590 !important}
 .gh.today-head{color:var(--blue-d);background:var(--blue-l)}
@@ -259,9 +260,6 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
    반응형 - 모바일
 ═══════════════════════════════ */
 @media (max-width: 768px) {
-  /* 구분선 */
-  .col-divider{width:1px !important;max-width:1px !important;min-width:1px !important}
-  .col-gap{width:1px !important;max-width:1px !important;min-width:1px !important}
   /* 헤더 */
   header{padding:10px 14px;gap:8px}
   .logo h1{font-size:15px}
@@ -287,7 +285,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   :root{--slot:28px}
   .col-head{font-size:10px;padding:6px 2px}
   .col-head .sub{font-size:9px}
-  .tc{font-size:8px;padding:1px 3px 0 0;width:36px}
+  .tc{font-size:8px;padding:1px 3px 0 0;width:36px;min-width:36px}
   .cal-grid{grid-template-columns:36px repeat(var(--day-cols,7),minmax(90px,1fr)) !important}
 
   /* 이벤트 블록 */
@@ -497,7 +495,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
       <label>유형</label>
       <select id="event-type" onchange="onEventTypeChange()">
         <option value="운영시간">스터디카페 운영시간 변경</option>
-        <option value="기타">특이사항</option>
+        <option value="기타">비고</option>
         <option value="공휴일">공휴일</option>
         <option value="모의고사">모의고사</option>
       </select>
@@ -518,13 +516,13 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 <div class="overlay" id="duty-overlay">
   <div class="modal" style="width:360px">
     <div class="mhd">
-      <h2>특이사항 등록</h2>
+      <h2>비고 등록</h2>
       <button class="xbtn" onclick="closeDutyOverlay()">×</button>
     </div>
     <p style="font-size:12px;color:var(--txt2);margin-bottom:14px" id="duty-date-label"></p>
     <input type="hidden" id="duty-date-val">
     <div class="field">
-      <label>특이사항 내용 (여러 개는 쉼표로 구분)</label>
+      <label>비고 내용 (여러 개는 쉼표로 구분)</label>
       <input id="duty-names" placeholder="예) 상담실: 김영태T, 조기종강">
     </div>
     <div class="macts">
@@ -1030,12 +1028,13 @@ function render(){
   // 강좌 없는 요일도 최소 1열 확보 (빈 날 표시용)
   const colSpec=[{type:'time'}];
   days.forEach((_,di)=>{
-    const isLast=di===days.length-1;
+    const isLastDay=di===days.length-1;
     let added=0;
     SUBJ_ORDER.forEach(subj=>{
       const lanes=dayGroups[di][subj]||[];
       if(!lanes.length) return;
       for(let li=0;li<lanes.length;li++){
+        const isLastLane=!isLastDay&&false; // 마지막 lane 여부는 후처리
         colSpec.push({type:'lane',di,subject:subj,li,isEmpty:false,isLast:false});
         added++;
       }
@@ -1043,21 +1042,20 @@ function render(){
     if(added===0){
       colSpec.push({type:'lane',di,subject:'',li:0,isEmpty:true,isLast:false});
     }
-    // 날짜 사이: 빈열 + 구분선열 + 빈열 (마지막 날짜 제외)
-    if(!isLast){
-      colSpec.push({type:'gap'});      // 빈열
-      colSpec.push({type:'divider'});  // 구분선
-      colSpec.push({type:'gap'});      // 빈열
-    }
+  });
+  // 각 날짜의 마지막 lane에 isLast 표시 (border-right 구분선용)
+  days.forEach((_,di)=>{
+    if(di===days.length-1) return;
+    const dCols=colSpec.filter(s=>s.type==='lane'&&s.di===di);
+    if(dCols.length) dCols[dCols.length-1].isLast=true;
   });
   const activeSubjects=SUBJ_ORDER.filter(s=>days.some((_,di)=>(dayGroups[di][s]||[]).length>0));
 
   // CSS grid columns
-  const isMobile=window.innerWidth<=768;
-  const gapW=isMobile?'0px':'6px';
-  const divW=isMobile?'2px':'2px';
-  const laneW=isMobile?'minmax(60px,1fr)':'minmax(90px,1fr)';
-  const colWidths=colSpec.map(s=>s.type==='time'?'48px':s.type==='gap'?gapW:s.type==='divider'?divW:laneW);
+  const isMobile=window.innerWidth<=900;
+  const emptyLaneW=isMobile?'minmax(40px,0.3fr)':'minmax(60px,0.5fr)';
+  const laneW=isMobile?'minmax(72px,1fr)':'minmax(90px,1fr)';
+  const colWidths=colSpec.map(s=>s.type==='time'?(isMobile?'36px':'48px'):s.isEmpty?emptyLaneW:laneW);
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
   document.documentElement.style.setProperty('--day-cols', colWidths.length-1);
@@ -1067,14 +1065,14 @@ function render(){
   // ── 4. 헤더 행 ──
   const corner=document.createElement('div');
   corner.className='gh';
-  corner.style.cssText='grid-column:1;grid-row:1;position:sticky;left:0;z-index:15;background:#FAFAF8;font-size:10px;color:#aaa;font-weight:400;text-align:right;padding:0 6px 0 0;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;';
+  corner.className='tc';corner.style.cssText='grid-column:1;grid-row:1;position:sticky;left:0;z-index:15;height:auto;line-height:normal;display:flex;align-items:center;justify-content:flex-end;';
   corner.textContent='날짜';
   grid.appendChild(corner);
 
   colSpec.forEach((sp,ci)=>{
     if(sp.type!=='gap'&&sp.type!=='divider') return;
     const hc=document.createElement('div');
-    hc.style.cssText=`grid-column:${specCol(ci)};grid-row:1;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+    hc.style.cssText=`grid-column:${specCol(ci)};grid-row:1;background:${sp.type==='divider'?'#B0ADA6':'var(--w)'};border-bottom:1px solid var(--bdr)`;
     grid.appendChild(hc);
   });
 
@@ -1086,7 +1084,10 @@ function render(){
     const firstCI=dayCols[0].i, lastCI=dayCols[dayCols.length-1].i;
     const h=document.createElement('div');
     const isAllHoliday=holidays.some(h=>h.date===isoDate(d)&&h.scope==='all');
-    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'');
+    const dayLanesH=colSpec.filter(s=>s.type==='lane'&&s.di===di);
+    const dayIsEmptyH=dayLanesH.length===1&&dayLanesH[0].isEmpty;
+    h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'')+(dayIsEmptyH?' gh-empty':'');
+    if(di<days.length-1) h.style.borderRight='2.5px solid #B0ADA6';
     if(isAllHoliday) h.style.cssText+='background:#FEE9E9;color:#922020;';
     else if(KR_HOLIDAYS[isoDate(d)]) h.style.cssText+='background:#FFF0F0;';
     else if(MOCK_EXAMS[isoDate(d)]) h.style.cssText+='background:#F5F0FF;';
@@ -1107,18 +1108,11 @@ function render(){
   // ── 3-1. 스터디카페 행 (row 2) ──
   // corner
   const cafeCorner=document.createElement('div');
-  cafeCorner.style.cssText='grid-column:1;grid-row:2;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:center;';
-  cafeCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">스터디</span>';
+  cafeCorner.className='tc';cafeCorner.style.cssText='grid-column:1;grid-row:2;z-index:6;height:auto;min-height:26px;line-height:normal;display:flex;align-items:center;justify-content:flex-end;';
+  cafeCorner.textContent='스터디';
   grid.appendChild(cafeCorner);
 
-  // gap/divider 스터디카페 셀
-  colSpec.forEach((sp,ci)=>{
-    if(sp.type!=='gap'&&sp.type!=='divider') return;
-    const sc=document.createElement('div');
-    sc.style.cssText=`grid-column:${specCol(ci)};grid-row:2;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
-    grid.appendChild(sc);
-  });
-
+  // 스터디카페 날짜 셀
   days.forEach((d,di)=>{
     const isToday=d.getTime()===today.getTime();
     const dayCols=colSpec.map((s,i)=>({s,i})).filter(({s})=>s.type==='lane'&&s.di===di);
@@ -1128,8 +1122,10 @@ function render(){
 
     const cafe=getStudyCafeHours(isoDate(d));
     const defaultCafe=getDefaultCafeHours(isoDate(d));
+    const dayLastLaneC=dayCols.length?dayCols[dayCols.length-1].s:null;
     const cafeCell=document.createElement('div');
-    cafeCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual2)+1};grid-row:2;background:${isToday?'rgba(55,138,221,.04)':'#FAFAF8'};border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);padding:3px 8px;display:flex;align-items:center;gap:5px;`;
+    const dayIsEmpty2=dayCols.length===1&&dayCols[0].s.isEmpty;
+    cafeCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCIActual2)+1};grid-row:2;background:${dayIsEmpty2?'transparent':isToday?'rgba(55,138,221,.04)':'#FAFAF8'};border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);padding:3px 8px;display:flex;align-items:center;gap:5px;`;
     if(cafe.isCustom){
       const isClose=cafe.hours==='휴무';
       if(isClose){
@@ -1140,22 +1136,23 @@ function render(){
     } else {
       cafeCell.innerHTML=`<span style="font-size:10px;font-weight:500;color:#1D9E75">${cafe.hours}</span>`;
     }
+    if(di<days.length-1) cafeCell.style.borderRight='2.5px solid #B0ADA6';
     if(IS_ADMIN){ cafeCell.style.cursor='pointer'; cafeCell.addEventListener('click',()=>{openEventModal(isoDate(d));document.getElementById('event-type').value='운영시간';onEventTypeChange();}); }
     grid.appendChild(cafeCell);
   });
 
-  // ── 특이사항 행 ──
+  // ── 비고 행 ──
   {
     const workCorner=document.createElement('div');
-    workCorner.style.cssText='grid-column:1;grid-row:3;background:#FAFAF8;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);position:sticky;left:0;z-index:6;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;';
-    workCorner.innerHTML='<span style="font-size:10px;color:#aaa;font-weight:400">특이사항</span>';
+    workCorner.className='tc';workCorner.style.cssText='grid-column:1;grid-row:3;z-index:6;height:auto;min-height:26px;line-height:normal;display:flex;align-items:center;justify-content:flex-end;';
+    workCorner.textContent='비고';
     grid.appendChild(workCorner);
 
     // gap/divider 근무 셀
     colSpec.forEach((sp,ci)=>{
       if(sp.type!=='gap'&&sp.type!=='divider') return;
       const sc=document.createElement('div');
-      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'#F0EEE9'};border-bottom:1px solid var(--bdr)`;
+      sc.style.cssText=`grid-column:${specCol(ci)};grid-row:3;background:${sp.type==='divider'?'#B0ADA6':'var(--w)'};border-bottom:1px solid var(--bdr)`;
       grid.appendChild(sc);
     });
 
@@ -1167,10 +1164,14 @@ function render(){
       const firstCI=dayCols[0].i, lastCI=dayCols[dayCols.length-1].i;
 
       const workCell=document.createElement('div');
+      const workDayCols=colSpec.map((s,i)=>({s,i})).filter(({s})=>s.type==='lane'&&s.di===di);
+      const workDayIsEmpty=workDayCols.length===1&&workDayCols[0].s.isEmpty;
+      if(workDayIsEmpty) return;
       workCell.className='work-row'+(isToday?' today-col':'');
       workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:3;`;
+      if(di<days.length-1) workCell.style.borderRight='2.5px solid #B0ADA6';
 
-      // 특이사항: 상담실 + 근무 특이사항 통합 표시
+      // 비고: 상담실 + 근무 비고 통합 표시
       const dayDutyW=duty.filter(dut=>dut.date===isoDate(d)).flatMap(dut=>dut.names);
       const customWork=dateEvents.filter(e=>e.date===isoDate(d)&&e.type==='근무');
       const items=[];
@@ -1188,7 +1189,7 @@ function render(){
 
 
   // ── 5. 시간 셀 + 강좌 셀 ──
-  const ROW_OFFSET=4; // 헤더+스터디+특이사항+슬롯
+  const ROW_OFFSET=4; // 헤더+스터디+비고+슬롯
   for(let s=0;s<TOTAL_SLOTS;s++){
     const mins=START_H*60+s*SLOT_MIN;
     const hh=Math.floor(mins/60),mm=mins%60;
@@ -1200,24 +1201,12 @@ function render(){
     grid.appendChild(tc);
 
     colSpec.forEach((sp,ci)=>{
-      if(sp.type==='gap'){
-        const g=document.createElement('div');
-        g.className='col-gap';
-        g.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:#F5F4F2`;
-        grid.appendChild(g); return;
-      }
-      if(sp.type==='divider'){
-        const dv=document.createElement('div');
-        dv.className='col-divider';
-        dv.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:#B0ADA6`;
-        grid.appendChild(dv); return;
-      }
       if(sp.type!=='lane') return;
       const cssCol=specCol(ci);
       const isToday=days[sp.di]&&days[sp.di].getTime()===today.getTime();
       const cell=document.createElement('div');
       cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'');
-
+      if(sp.isLast&&sp.di<days.length-1) cell.style.borderRight='2.5px solid #B0ADA6';
       cell.style.gridRow=row;cell.style.gridColumn=cssCol;
       if(sp.isEmpty) cell.style.background='rgba(0,0,0,.012)';
       const kr=dayKr(days[sp.di]);
@@ -1844,7 +1833,7 @@ function collectDayTimes(){
 
 // ── DUTY FUNCTIONS ──
 function openDutyModal(dateIso){
-  document.getElementById('duty-date-label').textContent=dateIso+' 특이사항';
+  document.getElementById('duty-date-label').textContent=dateIso+' 비고';
   document.getElementById('duty-date-val').value=dateIso;
   const existing=duty.filter(d=>d.date===dateIso).flatMap(d=>d.names);
   document.getElementById('duty-names').value=existing.join(', ');
@@ -1943,7 +1932,7 @@ function onEventTypeChange(){
   const inp=document.getElementById('event-content');
   const lbl=document.getElementById('event-content-label');
   if(type==='운영시간'){inp.placeholder='예) 10:00~22:00';lbl.textContent='운영시간 *';}
-  else if(type==='기타'){inp.placeholder='예) 상담실 변경, 조기종강';lbl.textContent='특이사항 내용 *';}
+  else if(type==='기타'){inp.placeholder='예) 상담실 변경, 조기종강';lbl.textContent='비고 내용 *';}
   else{inp.placeholder='예) 현충일, 고3 전국모의고사';lbl.textContent='내용 *';}
 }
 function openEventModal(dateIso){
