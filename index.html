@@ -259,6 +259,9 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
    반응형 - 모바일
 ═══════════════════════════════ */
 @media (max-width: 768px) {
+  /* 구분선 */
+  .col-divider{width:1px !important;max-width:1px !important}
+  .col-gap{width:2px !important;max-width:2px !important}
   /* 헤더 */
   header{padding:10px 14px;gap:8px}
   .logo h1{font-size:15px}
@@ -1199,11 +1202,13 @@ function render(){
     colSpec.forEach((sp,ci)=>{
       if(sp.type==='gap'){
         const g=document.createElement('div');
+        g.className='col-gap';
         g.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:#F5F4F2`;
         grid.appendChild(g); return;
       }
       if(sp.type==='divider'){
         const dv=document.createElement('div');
+        dv.className='col-divider';
         dv.style.cssText=`grid-row:${row};grid-column:${specCol(ci)};border-bottom:1px solid #F0EEE9;background:#B0ADA6`;
         grid.appendChild(dv); return;
       }
@@ -2113,6 +2118,7 @@ function updateNavBarTop(){
 (async()=>{
   updateNavBarTop();
   window.addEventListener('resize', updateNavBarTop);
+  window.addEventListener('resize', ()=>render());
   // 관리자 모드 UI
   if(IS_ADMIN){
     // 비밀번호 입력
