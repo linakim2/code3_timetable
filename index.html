@@ -123,6 +123,10 @@ main{padding:16px 24px}
   align-self:stretch;
 }
 .ev:hover{opacity:.88;box-shadow:0 3px 12px rgba(0,0,0,.15);transform:translateY(-1px);z-index:20}
+.ev.dragging{opacity:.5;transform:scale(.98);z-index:100;cursor:grabbing !important}
+.ev.drag-over{outline:2px dashed var(--blue-m);outline-offset:2px}
+.dc.drop-target{background:rgba(55,138,221,.1) !important;outline:2px dashed var(--blue-m)}
+.ev{cursor:grab}
 .ev-type-clinic{background:#E8E8E8 !important;color:#555 !important;border-left:none !important;position:relative;overflow:hidden}
 .ev-type-clinic::before{content:'';position:absolute;top:0;left:0;width:4px;height:40%;border-radius:8px 0 4px 0;opacity:.8;background:var(--clinic-accent,#888)}
 .ev-type-event{background:#C8F0E0 !important;color:#085041 !important;border-left:none !important}
@@ -815,8 +819,16 @@ function computeLanes(dayCourses){
       }
     }
 
-    // Pass 2: 안 겹침 + 이 lane이 다른 선생님 전용이 아닌 경우만
-    // (선생님 없는 강좌는 어느 lane에나 가능)
+    // Pass 2: 같은 강의실 + 안 겹침
+    if(bestLane===-1 && c.room){
+      for(const {i,l} of sameSbjLanes){
+        const sameRoom=l.courses.some(x=>x.room&&x.room===c.room);
+        const noOvlp=l.courses.every(x=>!overlaps(x,c));
+        if(sameRoom && noOvlp){ bestLane=i; break; }
+      }
+    }
+
+    // Pass 3: 같은 과목이면 선생님 달라도 안 겹치면 같은 열
     if(bestLane===-1){
       for(const {i,l} of sameSbjLanes){
         const noOvlp=l.courses.every(x=>!overlaps(x,c));
@@ -826,7 +838,7 @@ function computeLanes(dayCourses){
       }
     }
 
-    // Pass 3: 새 열
+    // Pass 4: 새 열
     if(bestLane===-1){
       lanes.push({subject:c.subject,courses:[]});
       bestLane=lanes.length-1;
@@ -1039,7 +1051,7 @@ function render(){
 
   // CSS grid columns
   const isMobile=window.innerWidth<=768;
-  const gapW=isMobile?'4px':'8px';
+  const gapW=isMobile?'2px':'6px';
   const divW=isMobile?'1px':'2px';
   const laneW=isMobile?'minmax(72px,1fr)':'minmax(90px,1fr)';
   const colWidths=colSpec.map(s=>s.type==='time'?'48px':s.type==='gap'?gapW:s.type==='divider'?divW:laneW);
@@ -1205,6 +1217,7 @@ function render(){
       if(sp.isEmpty) cell.style.background='rgba(0,0,0,.012)';
       const kr=dayKr(days[sp.di]);
       if(IS_ADMIN) cell.addEventListener('click',()=>openAddModal(kr,mins));
+      if(IS_ADMIN) initDropZone(cell,sp.di,days[sp.di]);
       grid.appendChild(cell);
     });
   }
@@ -1847,6 +1860,76 @@ function deleteDutyEntry(){
   duty=duty.filter(d=>d.date!==dateIso);
   closeDutyOverlay();render();
   sheetPost('deleteDuty',{date:dateIso});
+}
+
+// ── DRAG & DROP ──
+let dragState=null; // {courseId, origDi, origSubj, origLi}
+
+function initDrag(ev, c, di, subj, li){
+  if(!IS_ADMIN) return;
+  ev.draggable=true;
+  ev.addEventListener('dragstart',e=>{
+    dragState={courseId:c.id,origDi:di,origSubj:subj,origLi:li,course:c};
+    ev.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',c.id);
+  });
+  ev.addEventListener('dragend',()=>{
+    ev.classList.remove('dragging');
+    document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));
+    dragState=null;
+  });
+}
+
+function initDropZone(cell, di, d){
+  if(!IS_ADMIN) return;
+  cell.addEventListener('dragover',e=>{
+    if(!dragState) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    cell.classList.add('drop-target');
+  });
+  cell.addEventListener('dragleave',()=>cell.classList.remove('drop-target'));
+  cell.addEventListener('drop',e=>{
+    e.preventDefault();
+    cell.classList.remove('drop-target');
+    if(!dragState) return;
+    const {courseId,origDi,course}=dragState;
+    const targetDi=di;
+    const targetDate=isoDate(d);
+    const origDate=isoDate(days[origDi]);
+
+    if(origDi===targetDi){
+      // 같은 날짜: 아무것도 안 함
+    } else {
+      // 다른 날짜: 수정 모달로 날짜/요일 변경
+      const targetKr=dayKr(d);
+      if(confirm(`"${course.name}"을 ${origDate} → ${targetDate}(${targetKr})로 이동할까요?
+
+[확인] 실제 데이터 변경
+[취소] 취소`)){
+        // 해당 강좌의 요일을 대상 요일로 변경
+        openEditModal(courseId);
+        // 모달이 열리면 대상 요일 자동 선택
+        setTimeout(()=>{
+          // 기존 요일 체크 해제 후 대상 요일 체크
+          document.querySelectorAll('#day-checks .day-row').forEach(row=>{
+            const cb=row.querySelector('input[type=checkbox]');
+            if(!cb) return;
+            if(cb.value===targetKr){
+              cb.checked=true;
+              cb.dispatchEvent(new Event('change'));
+            } else if(course.days.length===1){
+              // 단일 요일이면 기존 요일 해제
+              cb.checked=false;
+              cb.dispatchEvent(new Event('change'));
+            }
+          });
+        },100);
+      }
+    }
+    dragState=null;
+  });
 }
 
 // ── DATE EVENT FUNCTIONS ──
