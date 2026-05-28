@@ -260,8 +260,8 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 ═══════════════════════════════ */
 @media (max-width: 768px) {
   /* 구분선 */
-  .col-divider{width:1px !important;max-width:1px !important}
-  .col-gap{width:2px !important;max-width:2px !important}
+  .col-divider{width:1px !important;max-width:1px !important;min-width:1px !important}
+  .col-gap{width:1px !important;max-width:1px !important;min-width:1px !important}
   /* 헤더 */
   header{padding:10px 14px;gap:8px}
   .logo h1{font-size:15px}
@@ -1054,9 +1054,9 @@ function render(){
 
   // CSS grid columns
   const isMobile=window.innerWidth<=768;
-  const gapW=isMobile?'2px':'6px';
-  const divW=isMobile?'1px':'2px';
-  const laneW=isMobile?'minmax(72px,1fr)':'minmax(90px,1fr)';
+  const gapW=isMobile?'0px':'6px';
+  const divW=isMobile?'2px':'2px';
+  const laneW=isMobile?'minmax(60px,1fr)':'minmax(90px,1fr)';
   const colWidths=colSpec.map(s=>s.type==='time'?'48px':s.type==='gap'?gapW:s.type==='divider'?divW:laneW);
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
