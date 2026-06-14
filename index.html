@@ -535,7 +535,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 
 <!-- 대체 수업 모달 -->
 <div class="overlay" id="replace-overlay">
-  <div class="modal" style="width:400px">
+  <div class="modal" style="width:min(480px,95vw)">
     <div class="mhd"><h2>대체 수업 등록</h2><button class="xbtn" onclick="closeReplaceOverlay()">×</button></div>
     <p style="font-size:12px;color:var(--txt2);margin-bottom:14px">
       강좌: <strong id="r-course-name"></strong><br>
@@ -546,9 +546,13 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
     <div class="fg">
       <div class="field"><label>대체 날짜 *</label><input id="r-repl-date" type="date"></div>
       <div class="field"><label>사유</label><input id="r-reason" placeholder="예) 강의실 변경, 공휴일 대체"></div>
-      <div class="field"><label>시작 시간</label><input id="r-start" type="time"></div>
-      <div class="field"><label>종료 시간</label><input id="r-end" type="time"></div>
+      <div class="field"><label>시작 시간</label><input id="r-start" type="time" style="width:100%"></div>
+      <div class="field"><label>종료 시간</label><input id="r-end" type="time" style="width:100%"></div>
       <div class="field"><label>강의실 변경</label><input id="r-room" placeholder="예) 302강 (비우면 원래 강의실)"></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>선생님 변경 (선택)</label>
+      <input id="r-teacher" placeholder="변경 시에만 입력 (비우면 기존 선생님 유지)">
     </div>
     <div class="macts">
       <button class="btn" onclick="closeReplaceOverlay()">취소</button>
@@ -632,7 +636,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyn9N3GxMgNkpDPD9wkwrvSG451vP5c3PIYPHoh5C2I_0uKRMF-Tfko7UvPBtmLwsW3uw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkdQe__ns7UoS0Doh8MSL5aRjUvkmCUtk33_OeDEGg6VoGO7HpAoZ3TNJj6MZ5ly2Hjg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -707,7 +711,13 @@ async function load(){
     if(allData.ok){
       courses=(allData.data.courses||[]).map(normalizeSheetCourse);
       holidays=(allData.data.holidays||[]).map(h=>({...h,date:parseDate(h.date)}));
-      replaces=(allData.data.replaces||[]).map(r=>({...r,origDate:parseDate(r.origDate),replDate:parseDate(r.replDate)}));
+      replaces=(allData.data.replaces||[]).map(r=>({
+        ...r,
+        origDate:parseDate(r.origDate),
+        replDate:parseDate(r.replDate),
+        start:parseTime(r.start),
+        end:parseTime(r.end),
+      }));
       duty=(allData.data.duty||[]).map(d=>({...d,date:parseDate(d.date)}));
       dateEvents=(allData.data.events||[]).map(e=>({...e,date:parseDate(e.date)}));
 
@@ -1007,6 +1017,7 @@ function render(){
       return {...orig,_isReplace:true,_replaceId:r.id,_reason:r.reason,_origDate:r.origDate,
         start:r.start||orig.start,end:r.end||orig.end,
         room:r.room||orig.room,
+        teacher:r.teacher||orig.teacher,
         _sameDay:r.sameDay||false};
     }).filter(Boolean).filter(c=>{
       if(!activeSubs.has('전체')&&!activeSubs.has(c.subject)) return false;
@@ -1309,7 +1320,7 @@ function render(){
                 const sn=calcSessionNum(c,dateStr2);
                 return `<span class="ev-time" style="opacity:.5">${sn?sn+'/':''}${c.totalCount}회</span>`;
               })():''}
-              ${c.memo?`<span style="font-size:8px;opacity:.65;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.memo}</span>`:''}
+              ${c.memo?`<span style="font-size:8px;opacity:.8;color:inherit;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic">${c.memo}</span>`:''}
               ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
             `;
           }
@@ -1976,6 +1987,7 @@ function openReplaceModal(courseId,origDate){
   document.getElementById('r-start').value=c.start;
   document.getElementById('r-end').value=c.end;
   document.getElementById('r-room').value=c.room||'';
+  document.getElementById('r-teacher').value='';
   document.getElementById('r-reason').value='';
   document.getElementById('r-course-id').value=courseId;
   document.getElementById('r-orig-date-val').value=origDate;
@@ -1991,10 +2003,11 @@ function saveReplace(){
   const start=document.getElementById('r-start').value;
   const end=document.getElementById('r-end').value;
   const room=document.getElementById('r-room').value.trim();
+  const teacher=document.getElementById('r-teacher').value.trim();
   const reason=document.getElementById('r-reason').value.trim();
   const sameDay=origDate===replDate;
   const id='R'+Date.now();
-  const data={id,courseId,origDate,replDate,start,end,room,reason,sameDay};
+  const data={id,courseId,origDate,replDate,start,end,room,reason,sameDay,teacher};
   replaces.push(data);
   // 날짜가 다를 때만 원래 날짜 휴강 처리
   if(!sameDay){
