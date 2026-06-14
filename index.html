@@ -545,7 +545,10 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
       원래 날짜 <strong id="r-orig-date"></strong> → 자동 휴강 처리됩니다
     </p>
     <input type="hidden" id="r-course-id"><input type="hidden" id="r-orig-date-val">
-    <p style="font-size:11px;color:var(--txt2);margin-bottom:8px">날짜를 같게 하면 강의실/시간만 변경됩니다</p>
+    <div style="border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fafaf8">
+      <p style="font-size:13px;font-weight:700;text-align:center;margin:0 0 6px;color:var(--txt)">다른 날짜 대체</p>
+      <p style="font-size:11px;color:var(--txt2);text-align:center;margin:0">날짜를 같게 하면 강의실/시간만 변경됩니다</p>
+    </div>
     <div class="fg">
       <div class="field"><label>대체 날짜 *</label><input id="r-repl-date" type="date"></div>
       <div class="field"><label>사유</label><input id="r-reason" placeholder="예) 강의실 변경, 공휴일 대체"></div>
@@ -2027,23 +2030,14 @@ function saveReplace(){
   const id='R'+Date.now();
   const data={id,courseId,origDate,replDate,start,end,room,reason,sameDay,teacher};
   replaces.push(data);
-  // 날짜가 다를 때만 원래 날짜 휴강 처리
-  if(!sameDay){
-    holidays.push({date:origDate,scope:'course',courseId,reason:`대체수업(${replDate})`});
-    saveHolidays();
-    sheetPost('saveHoliday',{date:origDate,scope:'course',courseId,reason:`대체수업(${replDate})`});
-  }
+  // isClosed는 replaces 배열 기반으로 계산 - 별도 휴강 추가 불필요
   closeReplaceOverlay();render();
   sheetPost('saveReplace',data);
 }
 function deleteReplace(replaceId,origDate,courseId){
   const r=replaces.find(x=>x.id===replaceId);
   replaces=replaces.filter(x=>x.id!==replaceId);
-  if(r&&!r.sameDay){
-    holidays=holidays.filter(h=>!(h.date===origDate&&h.scope==='course'&&h.courseId===courseId&&(h.reason||'').startsWith('대체수업')));
-    saveHolidays();
-    sheetPost('deleteHoliday',{date:origDate,scope:'course',courseId});
-  }
+  // isClosed는 replaces 기반 - 별도 휴강 삭제 불필요
   hideDP();render();
   sheetPost('deleteReplace',{id:replaceId});
 }
