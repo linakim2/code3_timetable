@@ -642,7 +642,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkdQe__ns7UoS0Doh8MSL5aRjUvkmCUtk33_OeDEGg6VoGO7HpAoZ3TNJj6MZ5ly2Hjg/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzFNIEfnftRzCtA515fie7Fd8PWBuhuSknn9R3WR4SES9sTYknhRL3jqZvlWJxQPjj_Wg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 
 // Sheets 연동 - localStorage 미사용
@@ -716,7 +716,9 @@ async function load(){
     const allData=await fetchGAS(SCRIPT_URL+'?action=all');
     if(allData.ok){
       courses=(allData.data.courses||[]).map(normalizeSheetCourse);
-      holidays=(allData.data.holidays||[]).map(h=>({...h,date:parseDate(h.date)}));
+      holidays=(allData.data.holidays||[])
+        .map(h=>({...h,date:parseDate(h.date)}))
+        .filter(h=>!(h.reason||'').startsWith('대체수업')); // 대체수업 휴강은 replaces 기반으로 처리
       replaces=(allData.data.replaces||[]).map(r=>({
         ...r,
         origDate:parseDate(r.origDate),
@@ -999,7 +1001,7 @@ function render(){
     const dayCourses=courses.filter(c=>{
       if(!c.days.includes(kr)) return false;
       if(!courseActiveOn(c,iso)) return false;
-      if(replaces.some(r=>r.courseId===c.id&&r.origDate===iso&&!r.sameDay)) return false;
+      // 대체수업 원래날짜: 필터 제거 안 함 (isClosed로 흐릿 처리)
       if(sameDayReplaces.some(r=>r.courseId===c.id)) return false;
       if(!activeSubs.has('전체')&&!activeSubs.has(c.subject)) return false;
       if(!activeTypes.has('전체')&&!activeTypes.has(c.type)) return false;
@@ -2037,7 +2039,11 @@ function saveReplace(){
 function deleteReplace(replaceId,origDate,courseId){
   const r=replaces.find(x=>x.id===replaceId);
   replaces=replaces.filter(x=>x.id!==replaceId);
-  // isClosed는 replaces 기반 - 별도 휴강 삭제 불필요
+  // Sheets에 남은 대체수업 휴강도 삭제
+  if(r&&!r.sameDay){
+    holidays=holidays.filter(h=>!(h.date===origDate&&h.scope==='course'&&h.courseId===courseId));
+    sheetPost('deleteHoliday',{date:origDate,scope:'course',courseId});
+  }
   hideDP();render();
   sheetPost('deleteReplace',{id:replaceId});
 }
