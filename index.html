@@ -1271,9 +1271,12 @@ function render(){
           // ── 먼저 선언 ──
           const dateStr2=isoDate(d);
           const isReplace=!!c._isReplace;
-          const isClosed=!isReplace&&holidays.some(h=>
-            h.date===dateStr2 &&
-            (h.scope==='all' || (h.scope==='course' && h.courseId===c.id))
+          const isClosed=!isReplace&&(
+            holidays.some(h=>
+              h.date===dateStr2 &&
+              (h.scope==='all' || (h.scope==='course' && h.courseId===c.id))
+            ) ||
+            replaces.some(r=>r.courseId===c.id&&r.origDate===dateStr2&&!r.sameDay)
           );
           ev.dataset.id=c.id;ev.dataset.subject=c.subject;ev.dataset.type=c.type;
           if(c.type==='클리닉'){
@@ -1330,11 +1333,21 @@ function render(){
           }
         if(isClosed){
           ev.classList.add('ev-closed');
-          const hbadge=document.createElement('span');
-          hbadge.className='ev-badge badge-휴강';
-          hbadge.textContent='휴강';
-          hbadge.style.cssText='position:absolute;top:3px;right:3px;z-index:3;opacity:1;filter:none';
-          ev.appendChild(hbadge);
+          const replInfo=replaces.find(r=>r.courseId===c.id&&r.origDate===dateStr2&&!r.sameDay);
+          if(replInfo){
+            const rbadge=document.createElement('span');
+            rbadge.className='ev-badge badge-대체';
+            rbadge.style.cssText='position:absolute;top:3px;right:3px;z-index:3;opacity:1;filter:none;font-size:8px;white-space:nowrap';
+            const rd=replInfo.replDate;
+            rbadge.textContent=`→ ${rd.slice(5).replace('-','/')}`;
+            ev.appendChild(rbadge);
+          } else {
+            const hbadge=document.createElement('span');
+            hbadge.className='ev-badge badge-휴강';
+            hbadge.textContent='휴강';
+            hbadge.style.cssText='position:absolute;top:3px;right:3px;z-index:3;opacity:1;filter:none';
+            ev.appendChild(hbadge);
+          }
         }
         ev.addEventListener('click',e=>{e.stopPropagation();showDP(e,c,kr,isClosed,dateStr2,displayStart,displayEnd)});
           grid.appendChild(ev);
