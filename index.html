@@ -1013,7 +1013,8 @@ function render(){
       const orig=courses.find(c=>c.id===r.courseId);
       if(!orig) return null;
       return {...orig,_isReplace:true,_replaceId:r.id,_reason:r.reason,_origDate:r.origDate,
-        start:r.start||orig.start,end:r.end||orig.end,room:r.room||orig.room,_sameDay:true};
+        start:r.start||orig.start,end:r.end||orig.end,room:r.room||orig.room,
+        teacher:r.teacher||orig.teacher,_sameDay:true};
     }).filter(Boolean).filter(c=>{
       if(!activeSubs.has('전체')&&!activeSubs.has(c.subject)) return false;
       if(!activeTypes.has('전체')&&!activeTypes.has(c.type)) return false;
@@ -1509,7 +1510,8 @@ function showDP(e,c,day,isClosed=false,dateIso='',displayStart='',displayEnd='')
     <div class="dp-acts" style="margin-top:10px;padding-top:8px;border-top:1px solid #F0EEE9;justify-content:flex-end">
       ${!isClosed?`<button class="dpb" onclick="quickHoliday('${c.id}','${dateIso}')">휴강</button>`:`<button class="dpb" onclick="cancelHoliday('${c.id}','${dateIso}')">휴강 해제</button>`}
       ${isReplace?
-        `<button class="dpb del" onclick="deleteReplace('${c._replaceId}','${dateIso}','${c.id}')">대체 취소</button>`
+        `<button class="dpb" onclick="editReplace('${c._replaceId}')">대체 수정</button>
+        <button class="dpb del" onclick="deleteReplace('${c._replaceId}','${dateIso}','${c.id}')">대체 취소</button>`
         :`<button class="dpb" onclick="openReplaceModal('${c.id}','${dateIso}')">대체 등록</button>
          <button class="dpb" onclick="openEditModal('${c.id}')">수정</button>
          <button class="dpb del" onclick="confirmDel('${c.id}')">삭제</button>`}
@@ -2036,6 +2038,29 @@ function saveReplace(){
   closeReplaceOverlay();render();
   sheetPost('saveReplace',data);
 }
+function editReplace(replaceId){
+  const r=replaces.find(x=>x.id===replaceId);
+  if(!r) return;
+  const c=courses.find(x=>x.id===r.courseId);
+  if(!c) return;
+  hideDP();
+  // 수정 모달 열기 - 기존 데이터 채움
+  document.getElementById('r-course-id').value=r.courseId;
+  document.getElementById('r-orig-date-val').value=r.origDate;
+  document.getElementById('r-orig-date').textContent=r.origDate;
+  document.getElementById('r-course-name').textContent=`[${c.subject}] ${c.name}`;
+  document.getElementById('r-repl-date').value=r.replDate;
+  document.getElementById('r-start').value=r.start||c.start;
+  document.getElementById('r-end').value=r.end||c.end;
+  document.getElementById('r-room').value=r.room||c.room||'';
+  document.getElementById('r-teacher').value=r.teacher||'';
+  document.getElementById('r-reason').value=r.reason||'';
+  // 기존 항목 삭제 후 재등록 방식으로 수정
+  replaces=replaces.filter(x=>x.id!==replaceId);
+  sheetPost('deleteReplace',{id:replaceId});
+  document.getElementById('replace-overlay').classList.add('open');
+}
+
 function deleteReplace(replaceId,origDate,courseId){
   const r=replaces.find(x=>x.id===replaceId);
   replaces=replaces.filter(x=>x.id!==replaceId);
