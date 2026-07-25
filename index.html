@@ -572,8 +572,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzFRTfQtwA4vWLI99V43rS_0w5uw-pmfNuv_9u_COspjIRCjfc7R_-2D_Akso4QiB-Naw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
-
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuJgav_q0lzSYIlbWYEXG7QQCRlWrlxCOWa9qLsW4Aezfegj7r41TvfVlTL3_JR_kCVw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 // Sheets 연동 - localStorage 미사용
 
 // ═══════════════════════════════
@@ -1152,14 +1151,15 @@ function render(){
       const items=[];
 
       // 1. 기본 근무시간 + 스케줄 특이사항
-      const uniqTeachersW=[...new Set(baseWork.map(b=>b.teacher))];
+      const uniqTeachersW=[...new Set([...baseWork.map(b=>b.teacher),...workSchedule.filter(s=>s.date===isoD).map(s=>s.teacher)])];
       uniqTeachersW.forEach(tchW=>{
         const versionsW=baseWork.filter(x=>x.teacher===tchW&&(!x.effectiveDate||x.effectiveDate<=isoD));
         versionsW.sort((a,b)=>(a.effectiveDate||'').localeCompare(b.effectiveDate||''));
         const bwSel=versionsW[versionsW.length-1];
         const bw={teacher:tchW,schedule:bwSel?bwSel.schedule:{}};
         const base=bw.schedule[krD];
-        const sch=workSchedule.find(s=>s.date===isoD&&s.teacher===bw.teacher);
+        const schM=workSchedule.filter(s=>s.date===isoD&&s.teacher===bw.teacher);
+        const sch=schM.length?schM[schM.length-1]:null;
         if(!base&&!sch) return;
         if(sch&&(sch.start||sch.end)){
           let txt=`<span class="work-teacher">${bw.teacher}</span> `;
