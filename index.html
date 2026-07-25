@@ -706,9 +706,11 @@ function updateCount(){}
 async function load(){
   if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'){
     // SCRIPT_URL 미설정: 기본 샘플 데이터 사용
-    courses=defaultCourses();
+    courses=[];
     holidays=[];
     replaces=[];
+    render();
+    scrollToToday();
     return;
   }
   showLoading(true);
@@ -744,6 +746,8 @@ async function load(){
     courses=[];holidays=[];replaces=[];
   }finally{
     showLoading(false);
+    render();
+    scrollToToday();
   }
 }
 
