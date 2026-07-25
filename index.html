@@ -644,7 +644,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzeE3xijWrlG5rHo2o7xP8H3hz32WJm38tAhFP1Te0sVex921CBeHP-M6bV60UtoznNiA/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrU1KTHWmX6Wrx7hpqSebEd9ggqmMRyYtGwgARgyBASj6K6h4p-ad1pPwtf4tXYjY8/exec; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -716,6 +716,10 @@ async function load(){
   }
   showLoading(true);
   try{
+    // 시간표 + 당직 데이터 병렬 요청 (로딩 시간 단축)
+    const workPromise=(WORK_SCRIPT_URL!=='YOUR_DUTY_APPS_SCRIPT_URL_HERE')
+      ? fetch(`${WORK_SCRIPT_URL}?action=allWork`).then(r=>r.json()).catch(()=>null)
+      : Promise.resolve(null);
     const allData=await fetchGAS(SCRIPT_URL+'?action=all');
     if(allData.ok){
       courses=(allData.data.courses||[]).map(normalizeSheetCourse);
@@ -730,13 +734,23 @@ async function load(){
         end:parseTime(r.end),
       }));
       duty=(allData.data.duty||[]).map(d=>({...d,date:parseDate(d.date)}));
-      // 당직표 데이터 (별도 Apps Script)
+      // 당직표 데이터 (병렬 요청 결과 + 시간 정규화)
       try{
-        if(WORK_SCRIPT_URL==='YOUR_DUTY_APPS_SCRIPT_URL_HERE') throw new Error('미설정');
-        const workRes=await fetch(`${WORK_SCRIPT_URL}?action=allWork`);
-        const workJson=await workRes.json();
-        baseWork=workJson.data.baseWork||[];
-        workSchedule=(workJson.data.schedule||[]).map(s=>({...s,date:parseDate(s.date)}));
+        const workJson=await workPromise;
+        if(workJson&&workJson.data){
+          const normT=t=>{
+            if(!t) return '';
+            if(typeof t==='string'&&t.match(/^\d{1,2}:\d{2}$/)) return t.padStart(5,'0');
+            const dd=new Date(t);
+            return isNaN(dd)?String(t):pad2(dd.getHours())+':'+pad2(dd.getMinutes());
+          };
+          baseWork=(workJson.data.baseWork||[]).map(b=>{
+            const sc={};
+            Object.keys(b.schedule||{}).forEach(k=>{sc[k]={start:normT(b.schedule[k].start),end:normT(b.schedule[k].end)};});
+            return {...b,schedule:sc};
+          });
+          workSchedule=(workJson.data.schedule||[]).map(s=>({...s,date:parseDate(s.date),start:normT(s.start),end:normT(s.end)}));
+        } else { baseWork=[]; workSchedule=[]; }
       }catch(e){ baseWork=[]; workSchedule=[]; }
       dateEvents=(allData.data.events||[]).map(e=>({...e,date:parseDate(e.date)}));
 
@@ -2055,13 +2069,41 @@ document.querySelectorAll('.chip').forEach(chip=>{
 });
 
 // \uad00\ub9ac\uc790 UI \ud45c\uc2dc
+async function verifyAdmin(){
+  let pw=sessionStorage.getItem('admin_pw');
+  if(!pw){
+    pw=prompt('관리자 비밀번호를 입력하세요');
+    if(pw===null){ location.search=''; return false; }
+    sessionStorage.setItem('admin_pw',pw);
+  }
+  if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE') return true;
+  try{
+    const res=await fetch(SCRIPT_URL,{
+      method:'POST',redirect:'follow',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({password:pw,action:'verify',data:{}})
+    });
+    const json=await res.json();
+    if(json.error==='unauthorized'){
+      sessionStorage.removeItem('admin_pw');
+      alert('비밀번호가 틀렸습니다.');
+      location.search='';
+      return false;
+    }
+    return true;
+  }catch(e){ return true; }
+}
+
 if(IS_ADMIN){
-  const ab=document.getElementById('admin-btns');
-  if(ab) ab.style.display='';
-  const lb=document.getElementById('admin-login-btn');
-  if(lb) lb.style.display='none';
-  const vb=document.getElementById('viewer-bar');
-  if(vb) vb.style.display='none';
+  verifyAdmin().then(ok=>{
+    if(!ok) return;
+    const ab=document.getElementById('admin-btns');
+    if(ab) ab.style.display='';
+    const lb=document.getElementById('admin-login-btn');
+    if(lb) lb.style.display='none';
+    const vb=document.getElementById('viewer-bar');
+    if(vb) vb.style.display='none';
+  });
 } else {
   const vb=document.getElementById('viewer-bar');
   if(vb) vb.style.display='';
