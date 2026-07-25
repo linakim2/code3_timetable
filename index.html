@@ -15,6 +15,7 @@
   --gray-bg:#F7F6F3;--bdr:#E0DDD6;--txt:#1a1a1a;--txt2:#666;--w:#fff;
   --slot:28px;
 }
+@media(min-width:901px){body{zoom:0.8}}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
 
@@ -644,7 +645,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrU1KTHWmX6Wrx7hpqSebEd9ggqmMRyYtGwgARgyBASj6K6h4p-ad1pPwtf4tXYjY8/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyOV1mO_V47OKNkzjzm8xRN1XIzxGIPjIp8XP85OYsaDCGM1nmaPlM6_w41Ye-0rk2cvQ/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -747,7 +748,7 @@ async function load(){
           baseWork=(workJson.data.baseWork||[]).map(b=>{
             const sc={};
             Object.keys(b.schedule||{}).forEach(k=>{sc[k]={start:normT(b.schedule[k].start),end:normT(b.schedule[k].end)};});
-            return {...b,schedule:sc};
+            return {...b,effectiveDate:parseDate(b.effectiveDate||''),schedule:sc};
           });
           workSchedule=(workJson.data.schedule||[]).map(s=>({...s,date:parseDate(s.date),start:normT(s.start),end:normT(s.end)}));
         } else { baseWork=[]; workSchedule=[]; }
@@ -1100,8 +1101,8 @@ function render(){
 
   // CSS grid columns
   const isMobile=window.innerWidth<=900;
-  const emptyLaneW=isMobile?'50px':'70px';
-  const laneW=isMobile?'90px':'120px'; // 고정 너비 - 내용에 따라 늘어나지 않음
+  const emptyLaneW=isMobile?'40px':'54px';
+  const laneW=isMobile?'76px':'100px'; // 고정 너비 - 내용에 따라 늘어나지 않음
   const colWidths=colSpec.map(s=>s.type==='time'?(isMobile?'36px':'48px'):s.isEmpty?emptyLaneW:laneW);
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
@@ -1224,7 +1225,12 @@ function render(){
       const items=[];
 
       // 1. 기본 근무시간 + 스케줄 특이사항
-      baseWork.forEach(bw=>{
+      const uniqTeachersW=[...new Set(baseWork.map(b=>b.teacher))];
+      uniqTeachersW.forEach(tchW=>{
+        const versionsW=baseWork.filter(x=>x.teacher===tchW&&(!x.effectiveDate||x.effectiveDate<=isoD));
+        versionsW.sort((a,b)=>(a.effectiveDate||'').localeCompare(b.effectiveDate||''));
+        const bwSel=versionsW[versionsW.length-1];
+        const bw={teacher:tchW,schedule:bwSel?bwSel.schedule:{}};
         const base=bw.schedule[krD];
         const sch=workSchedule.find(s=>s.date===isoD&&s.teacher===bw.teacher);
         if(!base&&!sch) return;
