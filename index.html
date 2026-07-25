@@ -1234,3 +1234,838 @@ function render(){
       } else if(IS_ADMIN){
         workCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${isoD}')">+ 추가</span>`;
       }
+
+      if(di<days.length-1) workCell.style.borderRight='2.5px solid #B0ADA6';
+      // 비고 행 읽기 전용 - 당직표에서 수정
+      grid.appendChild(workCell);
+    });
+  }
+
+  // ── 5. 시간 셀 + 강좌 셀 ──
+  const ROW_OFFSET=4; // row1=헤더, row2=스터디, row3=비고, row4~=시간슬롯
+  for(let s=0;s<TOTAL_SLOTS;s++){
+    const row=s+ROW_OFFSET;
+    const mins=START_H*60+s*SLOT_MIN;
+    const isHour=mins%60===0;
+
+    // 시간 라벨 (정시만)
+    const tc=document.createElement('div');
+    tc.className='tc';
+    tc.style.gridRow=row;
+    tc.style.gridColumn='1';
+    if(isHour) tc.textContent=`${pad2(Math.floor(mins/60))}:00`;
+    grid.appendChild(tc);
+
+    colSpec.forEach((sp,ci)=>{
+      if(sp.type!=='lane') return;
+      const d=days[sp.di];
+      const kr=dayKr(d);
+      const isToday=d.getTime()===today.getTime();
+      const cell=document.createElement('div');
+      cell.className='dc'+(isToday?' today-col':'')+(sp.isEmpty?' empty-lane':'');
+      if(sp.isLast&&sp.di<days.length-1) cell.style.borderRight='2.5px solid #B0ADA6';
+      cell.style.gridRow=row;
+      cell.style.gridColumn=specCol(ci);
+      if(isHour) cell.style.borderTop='1px solid var(--bdr)';
+      if(IS_ADMIN&&!sp.isEmpty){
+        cell.addEventListener('click',()=>openAddModal(kr,mins));
+        initDropZone(cell,sp.di,days[sp.di]);
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  // ── 6. 이벤트 배치 ──
+  days.forEach((d,di)=>{
+    const bySubj=dayGroups[di];
+    const dateStr2=isoDate(d);
+    const kr=dayKr(d);
+    SUBJ_ORDER.forEach(subj=>{
+      const lanes=bySubj[subj]||[];
+      lanes.forEach((laneCourses,li)=>{
+        // 이 lane의 colSpec 인덱스 찾기
+        const ci=colSpec.findIndex(sp=>sp.type==='lane'&&sp.di===di&&sp.subject===subj&&sp.li===li);
+        if(ci<0) return;
+        const cssCol=specCol(ci);
+
+        laneCourses.forEach(c=>{
+          // 요일별 시간 오버라이드
+          const dt=c.dayTimes&&c.dayTimes[kr];
+          const displayStart=(c._isReplace?c.start:(dt&&dt.start)||c.start);
+          const displayEnd=(c._isReplace?c.end:(dt&&dt.end)||c.end);
+
+          const ss=Math.floor((toMins(displayStart)-START_H*60)/SLOT_MIN);
+          const es=Math.ceil((toMins(displayEnd)-START_H*60)/SLOT_MIN);
+          if(es<=0||ss>=TOTAL_SLOTS) return;
+          const spanRows=Math.max(es-Math.max(ss,0),1);
+          const startRow=Math.max(ss,0)+ROW_OFFSET;
+
+          const ev=document.createElement('div');
+          const sc=subjectColor(c.subject);
+          ev.className=`ev ev-${sc}`;
+          if(c.type==='클리닉') ev.classList.add('ev-type-clinic');
+          if(c.type==='설명회') ev.classList.add('ev-type-event');
+          ev.style.gridRow=`${startRow} / span ${spanRows}`;
+          ev.style.gridColumn=cssCol;
+          ev.style.minWidth='0';
+          ev.style.margin='1px';
+
+          const isReplace=!!c._isReplace;
+          const isClosed=!isReplace&&(
+            holidays.some(h=>
+              h.date===dateStr2 &&
+              (h.scope==='all' || (h.scope==='course' && h.courseId===c.id))
+            ) ||
+            replaces.some(r=>r.courseId===c.id&&r.origDate===dateStr2&&!r.sameDay)
+          );
+          ev.dataset.id=c.id;
+
+          // 높이에 따라 내용 축약
+          if(spanRows<=2){
+            ev.innerHTML=`
+              <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:2px">
+                <span class="ev-time" style="font-size:8px;font-weight:600;opacity:.85;white-space:nowrap">${displayStart}\u2013${displayEnd}</span>
+                <span class="ev-badge badge-${c.type}" style="font-size:7px;flex-shrink:0">${c.type}</span>
+              </div>
+            `;
+          } else if(spanRows<=4){
+            ev.innerHTML=`
+              <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${displayStart}\u2013${displayEnd}</span>
+              <div class="ev-top">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
+                  ${isReplace?'<span class="ev-badge badge-\ub300\uccb4">\ub300\uccb4</span>':''}
+                  <span class="ev-badge badge-${c.type}">${c.type}</span>
+                </div>
+                <span class="ev-name">${c.name}</span>
+              </div>
+              ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
+              ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
+            `;
+          } else {
+            ev.innerHTML=`
+              <span class="ev-time" style="font-size:9px;font-weight:600;opacity:.85">${displayStart}\u2013${displayEnd}</span>
+              <div class="ev-top">
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0">
+                  ${isReplace?'<span class="ev-badge badge-\ub300\uccb4">\ub300\uccb4</span>':''}
+                  <span class="ev-badge badge-${c.type}">${c.type}</span>
+                </div>
+                <span class="ev-name">${c.name}</span>
+              </div>
+              ${c.teacher?`<span class="ev-teacher">${c.teacher}</span>`:''}
+              ${isReplace&&c._origDate&&!c._sameDay?`<span style="font-size:8px;color:var(--green-d);opacity:.85">\u21a9 \uc6d0\ub798 ${c._origDate}</span>`:''}
+              ${c.totalCount?(()=>{
+                const snDate=c._isReplace&&c._origDate?c._origDate:dateStr2;
+                const sn=calcSessionNum(c,snDate);
+                return `<span style="font-size:9px;font-weight:700;opacity:.8">${sn?sn+'/':''}${c.totalCount}\ud68c</span>`;
+              })():''}
+              ${c.memo?`<span style="font-size:8px;opacity:.8;color:inherit;margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic">${c.memo}</span>`:''}
+              ${c.room?`<span class="ev-room" style="margin-top:auto;text-align:right">${c.room}</span>`:''}
+            `;
+          }
+
+          if(isClosed){
+            ev.classList.add('ev-closed');
+            const replInfo=replaces.find(r=>r.courseId===c.id&&r.origDate===dateStr2&&!r.sameDay);
+            if(replInfo){
+              const rbadge=document.createElement('span');
+              rbadge.className='ev-badge badge-\ub300\uccb4';
+              rbadge.style.cssText='position:absolute;top:3px;right:3px;z-index:3;opacity:1;filter:none;font-size:8px;white-space:nowrap';
+              const rd=replInfo.replDate;
+              rbadge.textContent=`\u2192 ${rd.slice(5).replace('-','/')}`;
+              ev.appendChild(rbadge);
+            } else {
+              const hbadge=document.createElement('span');
+              hbadge.className='ev-badge badge-\ud734\uac15';
+              hbadge.textContent='\ud734\uac15';
+              hbadge.style.cssText='position:absolute;top:3px;right:3px;z-index:3;opacity:1;filter:none';
+              ev.appendChild(hbadge);
+            }
+          }
+
+          ev.addEventListener('click',e=>{e.stopPropagation();showDP(e,c,kr,isClosed,dateStr2,displayStart,displayEnd)});
+          if(IS_ADMIN) initDrag(ev,c,di,subj,li);
+          grid.appendChild(ev);
+        });
+      });
+    });
+  });
+}
+
+// ═══════════════════════════════
+//  DATE / HOLIDAY UTILS
+// ═══════════════════════════════
+function isoDate(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())}
+
+// 특정 날짜가 강좌의 몇 번째 수업인지 계산
+function calcSessionNum(c, dateIso){
+  if(!c.startDate||!c.totalCount) return null;
+  const DAY_NUM={\uc77c:0,\uc6d4:1,\ud654:2,\uc218:3,\ubaa9:4,\uae08:5,\ud1a0:6};
+  const dayNums=c.days.map(d=>DAY_NUM[d]).filter(n=>n!==undefined);
+  if(!dayNums.length) return null;
+  const start=new Date(c.startDate);
+  const target=new Date(dateIso);
+  if(target<start) return null;
+  let count=0;
+  const cur=new Date(start);
+  while(cur<=target){
+    if(dayNums.includes(cur.getDay())) count++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return count>0?count:null;
+}
+
+// \ud55c\uad6d \uacf5\ud734\uc77c (\ub0b4\uc7a5 2025~2027)
+const KR_HOLIDAYS={
+  '2025-01-01':'\uc2e0\uc815',
+  '2025-01-28':'\uc124\ub0a0 \uc5f0\ud734','2025-01-29':'\uc124\ub0a0','2025-01-30':'\uc124\ub0a0 \uc5f0\ud734',
+  '2025-03-01':'\uc0bc\uc77c\uc808',
+  '2025-05-05':'\uc5b4\ub9b0\uc774\ub0a0','2025-05-06':'\uc5b4\ub9b0\uc774\ub0a0 \ub300\uccb4',
+  '2025-05-15':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0',
+  '2025-06-06':'\ud604\ucda9\uc77c',
+  '2025-08-15':'\uad11\ubcf5\uc808',
+  '2025-09-06':'\ucd94\uc11d \uc5f0\ud734','2025-09-07':'\ucd94\uc11d','2025-09-08':'\ucd94\uc11d \uc5f0\ud734',
+  '2025-10-03':'\uac1c\ucc9c\uc808',
+  '2025-10-09':'\ud55c\uae00\ub0a0',
+  '2025-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
+  '2026-01-01':'\uc2e0\uc815',
+  '2026-01-28':'\uc124\ub0a0 \uc5f0\ud734','2026-01-29':'\uc124\ub0a0','2026-01-30':'\uc124\ub0a0 \uc5f0\ud734',
+  '2026-03-01':'\uc0bc\uc77c\uc808','2026-03-02':'\uc0bc\uc77c\uc808 \ub300\uccb4',
+  '2026-05-05':'\uc5b4\ub9b0\uc774\ub0a0',
+  '2026-05-24':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0','2026-05-25':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0 \ub300\uccb4',
+  '2026-06-03':'\uc9c0\ubc29\uc120\uac70',
+  '2026-06-06':'\ud604\ucda9\uc77c',
+  '2026-08-15':'\uad11\ubcf5\uc808','2026-08-17':'\uad11\ubcf5\uc808 \ub300\uccb4',
+  '2026-09-24':'\ucd94\uc11d \uc5f0\ud734','2026-09-25':'\ucd94\uc11d','2026-09-26':'\ucd94\uc11d \uc5f0\ud734',
+  '2026-10-03':'\uac1c\ucc9c\uc808','2026-10-05':'\uac1c\ucc9c\uc808 \ub300\uccb4',
+  '2026-10-09':'\ud55c\uae00\ub0a0',
+  '2026-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
+  '2027-01-01':'\uc2e0\uc815',
+  '2027-02-06':'\uc124\ub0a0 \uc5f0\ud734','2027-02-07':'\uc124\ub0a0','2027-02-08':'\uc124\ub0a0 \uc5f0\ud734','2027-02-09':'\uc124\ub0a0 \ub300\uccb4',
+  '2027-03-01':'\uc0bc\uc77c\uc808',
+  '2027-05-01':'\uadfc\ub85c\uc790\uc758 \ub0a0','2027-05-03':'\uadfc\ub85c\uc790\uc758 \ub0a0 \ub300\uccb4',
+  '2027-05-05':'\uc5b4\ub9b0\uc774\ub0a0',
+  '2027-05-13':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0',
+  '2027-06-06':'\ud604\ucda9\uc77c',
+  '2027-08-15':'\uad11\ubcf5\uc808','2027-08-16':'\uad11\ubcf5\uc808 \ub300\uccb4',
+  '2027-09-14':'\ucd94\uc11d \uc5f0\ud734','2027-09-15':'\ucd94\uc11d','2027-09-16':'\ucd94\uc11d \uc5f0\ud734',
+  '2027-10-03':'\uac1c\ucc9c\uc808','2027-10-04':'\uac1c\ucc9c\uc808 \ub300\uccb4',
+  '2027-10-09':'\ud55c\uae00\ub0a0','2027-10-11':'\ud55c\uae00\ub0a0 \ub300\uccb4',
+  '2027-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
+};
+
+// \uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac \uc77c\uc815 (\ub0b4\uc7a5)
+const MOCK_EXAMS={
+  '2025-03-28':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (3\uc6d4)','2025-04-24':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (4\uc6d4)',
+  '2025-06-05':'\uace03 \uc218\ub2a5\ubaa8\uc758\ud3c9\uac00 (6\uc6d4)','2025-07-10':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (7\uc6d4)',
+  '2025-09-04':'\uace03 \uc218\ub2a5\ubaa8\uc758\ud3c9\uac00 (9\uc6d4)','2025-10-16':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (10\uc6d4)',
+  '2026-03-26':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (3\uc6d4)','2026-04-23':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (4\uc6d4)',
+  '2026-06-04':'\uace03 \uc218\ub2a5\ubaa8\uc758\ud3c9\uac00 (6\uc6d4)','2026-07-08':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (7\uc6d4)',
+  '2026-09-03':'\uace03 \uc218\ub2a5\ubaa8\uc758\ud3c9\uac00 (9\uc6d4)','2026-10-15':'\uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac (10\uc6d4)',
+};
+
+// \uc2a4\ud130\ub514\uce74\ud398 \uc6b4\uc601\uc2dc\uac04
+const STUDY_CAFE_HOURS={
+  weekday:'16:00~24:00',
+  saturday:'09:00~24:00',
+  sunday:'09:00~22:00',
+  holiday:'10:00~22:00',
+};
+
+function getDefaultCafeHours(iso){
+  if(KR_HOLIDAYS[iso]) return {hours:STUDY_CAFE_HOURS.holiday};
+  const d=new Date(iso);
+  const day=d.getDay();
+  if(day===6) return {hours:STUDY_CAFE_HOURS.saturday};
+  if(day===0) return {hours:STUDY_CAFE_HOURS.sunday};
+  return {hours:STUDY_CAFE_HOURS.weekday};
+}
+function getStudyCafeHours(iso){
+  const custom=dateEvents.find(e=>e.date===iso&&e.type==='\uc6b4\uc601\uc2dc\uac04');
+  if(custom) return {hours:custom.content,isCustom:true};
+  const isHoliday=KR_HOLIDAYS[iso]||dateEvents.some(e=>e.date===iso&&e.type==='\uacf5\ud734\uc77c');
+  if(isHoliday) return {hours:STUDY_CAFE_HOURS.holiday,isCustom:false};
+  const d=new Date(iso);
+  const day=d.getDay();
+  if(day===6) return {hours:STUDY_CAFE_HOURS.saturday,isCustom:false};
+  if(day===0) return {hours:STUDY_CAFE_HOURS.sunday,isCustom:false};
+  return {hours:STUDY_CAFE_HOURS.weekday,isCustom:false};
+}
+
+function getDateInfo(iso){
+  const result=[];
+  if(KR_HOLIDAYS[iso]) result.push({content:KR_HOLIDAYS[iso],type:'\uacf5\ud734\uc77c'});
+  if(MOCK_EXAMS[iso]) result.push({content:MOCK_EXAMS[iso],type:'\ubaa8\uc758\uace0\uc0ac'});
+  dateEvents.filter(e=>e.date===iso&&e.type!=='\uc6b4\uc601\uc2dc\uac04'&&e.type!=='\uae30\ud0c0'&&e.type!=='\uadfc\ubb34').forEach(e=>result.push({content:e.content,type:e.type}));
+  return result;
+}
+
+// ═══════════════════════════════
+//  DETAIL POPUP
+// ═══════════════════════════════
+function showDP(e,c,kr,isClosed,dateIso,dispStart,dispEnd){
+  const dp=document.getElementById('dp');
+  dpActiveId=c.id;
+  const isReplace=!!c._isReplace;
+  const dt=c.dayTimes&&c.dayTimes[kr];
+  const timeStr=`${dispStart||c.start} ~ ${dispEnd||c.end}`;
+  dp.innerHTML=`
+    <div class="dp-hd">
+      <span class="ev-badge badge-${c.type}">${c.type}</span>
+      <strong style="font-size:14px">${c.name}</strong>
+      ${isReplace?'<span class="ev-badge badge-\ub300\uccb4">\ub300\uccb4</span>':''}
+      ${isClosed?'<span class="ev-badge badge-\ud734\uac15">\ud734\uac15</span>':''}
+    </div>
+    <div class="dp-row"><span class="k">\uacfc\ubaa9</span><span class="v">${c.subject}</span></div>
+    <div class="dp-row"><span class="k">\uc2dc\uac04</span><span class="v">${timeStr} (${kr})</span></div>
+    ${c.teacher?`<div class="dp-row"><span class="k">\uc120\uc0dd\ub2d8</span><span class="v">${c.teacher}</span></div>`:''}
+    ${c.room?`<div class="dp-row"><span class="k">\uac15\uc758\uc2e4</span><span class="v">${c.room}</span></div>`:''}
+    ${c.startDate?`<div class="dp-row"><span class="k">\uac1c\uac15\uc77c</span><span class="v">${c.startDate}</span></div>`:''}
+    ${c.endDate?`<div class="dp-row"><span class="k">\uc885\uac15\uc77c</span><span class="v">${c.endDate}</span></div>`:''}
+    ${c.totalCount?(()=>{
+      const snDate2=c._isReplace&&c._origDate?c._origDate:dateIso;
+      const sn=calcSessionNum(c,snDate2);
+      return `<div class="dp-row"><span class="k">\uc9c4\ud589 \ud68c\ucc28</span><span class="v">${sn?sn+' / ':''} ${c.totalCount}\ud68c</span></div>`;
+    })():''}
+    ${isReplace&&c._origDate&&!c._sameDay?`<div class="dp-row"><span class="k">\uc6d0\ub798 \ub0a0\uc9dc</span><span class="v">${c._origDate}</span></div>`:''}
+    ${c._reason?`<div class="dp-row"><span class="k">\uc0ac\uc720</span><span class="v">${c._reason}</span></div>`:''}
+    ${c.memo?`<div class="dp-row"><span class="k">\uba54\ubaa8</span><span class="v">${c.memo}</span></div>`:''}
+    ${IS_ADMIN?`
+    <div class="dp-acts">
+      ${!isReplace?`<button class="dpb" onclick="openEditModal('${c.id}')">\uc218\uc815</button>`:''}
+      ${!isReplace&&!isClosed?`<button class="dpb" onclick="quickHoliday('${c.id}','${dateIso}')">\ud734\uac15</button>`:''}
+      ${!isReplace&&isClosed&&!replaces.some(r=>r.courseId===c.id&&r.origDate===dateIso&&!r.sameDay)?`<button class="dpb" onclick="cancelHoliday('${c.id}','${dateIso}')">\ud734\uac15 \ud574\uc81c</button>`:''}
+      ${isReplace?
+        `<button class="dpb" onclick="editReplace('${c._replaceId}')">\ub300\uccb4 \uc218\uc815</button>
+        <button class="dpb del" onclick="deleteReplace('${c._replaceId}','${c._origDate}','${c.id}')">\ub300\uccb4 \ucde8\uc18c</button>`
+        :`<button class="dpb" onclick="openReplaceModal('${c.id}','${dateIso}')">\ub300\uccb4 \ub4f1\ub85d</button>`}
+    </div>`:''}
+  `;
+  dp.classList.add('show');
+  // \uc704\uce58
+  const r=e.target.closest('.ev').getBoundingClientRect();
+  const dpW=280;
+  let left=r.right+8;
+  if(left+dpW>window.innerWidth) left=r.left-dpW-8;
+  if(left<8) left=8;
+  let top=r.top;
+  dp.style.left=left+'px';
+  dp.style.top=Math.min(top,window.innerHeight-320)+'px';
+}
+function hideDP(){
+  const dp=document.getElementById('dp');
+  if(dp){dp.classList.remove('show');}
+  dpActiveId=null;
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dp')&&!e.target.closest('.ev')) hideDP();
+});
+
+function cancelHoliday(courseId,dateIso){
+  holidays=holidays.filter(h=>!(h.date===dateIso&&h.scope==='course'&&h.courseId===courseId));
+  saveHolidays();hideDP();render();
+  sheetPost('deleteHoliday',{date:dateIso,scope:'course',courseId});
+}
+
+// ═══════════════════════════════
+//  \uac15\uc88c CRUD
+// ═══════════════════════════════
+function buildDayChecks(selectedDays,dayTimes,defStart,defEnd){
+  const wrap=document.getElementById('day-checks');
+  const DAYS_ALL=['\uc6d4','\ud654','\uc218','\ubaa9','\uae08','\ud1a0','\uc77c'];
+  wrap.innerHTML=DAYS_ALL.map(d=>{
+    const on=selectedDays.includes(d);
+    const dt=(dayTimes||{})[d]||{};
+    return `<div class="day-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <label style="display:flex;align-items:center;gap:5px;min-width:44px;cursor:pointer">
+        <input type="checkbox" value="${d}" ${on?'checked':''} onchange="this.closest('.day-row').querySelector('.day-time-inputs').style.display=this.checked?'flex':'none'">
+        <span style="font-size:13px">${d}</span>
+      </label>
+      <div class="day-time-inputs" style="display:${on?'flex':'none'};align-items:center;gap:4px">
+        <input type="time" class="dt-start" value="${dt.start||''}" placeholder="\uc2dc\uc791">
+        <span style="color:#aaa;font-size:11px">~</span>
+        <input type="time" class="dt-end" value="${dt.end||''}" placeholder="\uc885\ub8cc">
+      </div>
+    </div>`;
+  }).join('');
+}
+function collectDayTimes(){
+  const days=[]; const dayTimes={};
+  document.querySelectorAll('#day-checks .day-row').forEach(row=>{
+    const cb=row.querySelector('input[type=checkbox]');
+    if(!cb||!cb.checked) return;
+    days.push(cb.value);
+    const s=row.querySelector('.dt-start').value;
+    const e=row.querySelector('.dt-end').value;
+    if(s||e) dayTimes[cb.value]={start:s,end:e};
+  });
+  return {days,dayTimes};
+}
+function onEndModeChange(){
+  const mode=document.getElementById('f-endmode').value;
+  document.getElementById('f-enddate-wrap').style.display=mode==='\uc9c1\uc811'?'':'none';
+  document.getElementById('f-totalcount-wrap').style.display=mode==='\ud68c\ucc28'?'':'none';
+  document.getElementById('f-enddate-calc-wrap').style.display=mode==='\ud68c\ucc28'?'':'none';
+  if(mode==='\ud68c\ucc28') updateCalcEnddate();
+}
+function updateCalcEnddate(){
+  const startDate=document.getElementById('f-startdate').value;
+  const total=parseInt(document.getElementById('f-totalcount').value)||0;
+  const {days}=collectDayTimes();
+  const out=document.getElementById('f-enddate-calc');
+  if(!startDate||!total||!days.length){out.value='';return;}
+  const DAY_NUM={\uc77c:0,\uc6d4:1,\ud654:2,\uc218:3,\ubaa9:4,\uae08:5,\ud1a0:6};
+  const dayNums=days.map(d=>DAY_NUM[d]);
+  let count=0; const cur=new Date(startDate);
+  let safety=0;
+  while(count<total&&safety<1000){
+    if(dayNums.includes(cur.getDay())) count++;
+    if(count>=total) break;
+    cur.setDate(cur.getDate()+1); safety++;
+  }
+  out.value=isoDate(cur);
+}
+document.addEventListener('input',e=>{
+  if(['f-totalcount','f-startdate'].includes(e.target.id)) updateCalcEnddate();
+});
+
+function openAddModal(kr,mins){
+  editingId=null;
+  document.getElementById('modal-title').textContent='\uac15\uc88c \ucd94\uac00';
+  document.getElementById('f-name').value='';
+  document.getElementById('f-teacher').value='';
+  document.getElementById('f-room').value='';
+  document.getElementById('f-startdate').value=isoDate(new Date());
+  document.getElementById('f-endmode').value='\uc5c6\uc74c';
+  document.getElementById('f-enddate').value='';
+  document.getElementById('f-totalcount').value='';
+  onEndModeChange();
+  document.getElementById('f-subject').value='\uad6d\uc5b4';
+  document.getElementById('f-type').value='\uc218\uc5c5';
+  const startT=mins!==undefined?`${pad2(Math.floor(mins/60))}:${pad2(mins%60)}`:'18:00';
+  document.getElementById('f-start').value=startT;
+  const endM=(mins!==undefined?mins:1080)+120;
+  document.getElementById('f-end').value=`${pad2(Math.floor(endM/60))}:${pad2(endM%60)}`;
+  document.getElementById('f-memo').value='';
+  buildDayChecks(kr?[kr]:[], {}, startT, '');
+  document.getElementById('del-btn').style.display='none';
+  document.getElementById('conflict-warn').style.display='none';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function openEditModal(id){
+  const c=courses.find(x=>x.id===id);
+  if(!c) return;
+  hideDP();
+  editingId=id;
+  document.getElementById('modal-title').textContent='\uac15\uc88c \uc218\uc815';
+  document.getElementById('f-name').value=c.name;
+  document.getElementById('f-teacher').value=c.teacher||'';
+  document.getElementById('f-room').value=c.room||'';
+  document.getElementById('f-startdate').value=c.startDate||'';
+  document.getElementById('f-endmode').value=c.endMode||(c.endDate?'\uc9c1\uc811':'\uc5c6\uc74c');
+  document.getElementById('f-enddate').value=c.endDate||'';
+  document.getElementById('f-totalcount').value=c.totalCount||'';
+  onEndModeChange();
+  document.getElementById('f-subject').value=c.subject;
+  document.getElementById('f-type').value=c.type;
+  document.getElementById('f-start').value=c.start;
+  document.getElementById('f-end').value=c.end;
+  document.getElementById('f-memo').value=c.memo||'';
+  buildDayChecks(c.days, c.dayTimes||{}, c.start, c.end);
+  document.getElementById('del-btn').style.display='';
+  document.getElementById('conflict-warn').style.display='none';
+  document.getElementById('overlay').classList.add('open');
+}
+function closeOverlay(){document.getElementById('overlay').classList.remove('open')}
+
+function saveCourse(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('\uac15\uc88c\uba85\uc744 \uc785\ub825\ud574\uc8fc\uc138\uc694');return}
+  const {days,dayTimes}=collectDayTimes();
+  if(!days.length){alert('\uc694\uc77c\uc744 \ud558\ub098 \uc774\uc0c1 \uc120\ud0dd\ud574\uc8fc\uc138\uc694');return}
+  const endMode=document.getElementById('f-endmode').value;
+  let endDate=document.getElementById('f-enddate').value;
+  const totalCount=parseInt(document.getElementById('f-totalcount').value)||0;
+  if(endMode==='\ud68c\ucc28') endDate=document.getElementById('f-enddate-calc').value;
+  if(endMode==='\uc5c6\uc74c') endDate='';
+  const data={
+    id: editingId||nextId(),
+    name,
+    teacher: document.getElementById('f-teacher').value.trim(),
+    room: document.getElementById('f-room').value.trim(),
+    startDate: document.getElementById('f-startdate').value,
+    endMode, endDate,
+    totalCount: endMode==='\ud68c\ucc28'?totalCount:(totalCount||0),
+    subject: document.getElementById('f-subject').value,
+    type: document.getElementById('f-type').value,
+    start: document.getElementById('f-start').value,
+    end: document.getElementById('f-end').value,
+    days, dayTimes,
+    memo: document.getElementById('f-memo').value.trim(),
+  };
+  if(editingId){
+    const i=courses.findIndex(x=>x.id===editingId);
+    courses[i]=data;
+    sheetPost('updateCourse',data);
+  } else {
+    courses.push(data);
+    sheetPost('saveCourse',data);
+  }
+  save();closeOverlay();render();
+}
+
+function deleteCourse(){
+  if(!editingId) return;
+  if(!confirm('\uc774 \uac15\uc88c\ub97c \uc0ad\uc81c\ud560\uae4c\uc694?')) return;
+  courses=courses.filter(c=>c.id!==editingId);
+  sheetPost('deleteCourse',{id:editingId});
+  save();closeOverlay();render();
+}
+
+// ═══════════════════════════════
+//  \ud734\uac15
+// ═══════════════════════════════
+function onScopeChange(){
+  const scope=document.getElementById('h-scope').value;
+  document.getElementById('h-course-wrap').style.display=scope==='course'?'':'none';
+}
+
+function addDateRange(startVal, endVal){
+  const container=document.getElementById('h-date-ranges');
+  const row=document.createElement('div');
+  row.className='date-range-row';
+  row.innerHTML=`
+    <input type="date" class="dr-start" value="${startVal||''}">
+    <span style="color:#aaa;font-size:12px">~</span>
+    <input type="date" class="dr-end" value="${endVal||''}">
+    <button class="remove-btn" onclick="this.closest('.date-range-row').remove()">\u2715</button>
+  `;
+  container.appendChild(row);
+}
+
+function openHolidayModal(){
+  const today2=new Date(); today2.setHours(0,0,0,0);
+  document.getElementById('h-scope').value='all';
+  document.getElementById('h-reason').value='';
+  document.getElementById('h-course-wrap').style.display='none';
+  document.getElementById('h-date-ranges').innerHTML='';
+  addDateRange(isoDate(today2), isoDate(today2));
+  const sel=document.getElementById('h-course');
+  sel.innerHTML=courses.filter(c=>{
+    if(!c.endDate) return true;
+    const end=new Date(c.endDate); end.setHours(0,0,0,0);
+    const diffDays=Math.floor((today2-end)/(1000*60*60*24));
+    return diffDays < 21;
+  }).map(c=>{
+    let badge='';
+    if(c.endDate){
+      const end=new Date(c.endDate); end.setHours(0,0,0,0);
+      const diffDays=Math.floor((today2-end)/(1000*60*60*24));
+      if(diffDays>0) badge=` [\uc885\uac15 +${diffDays}\uc77c]`;
+    }
+    return `<option value="${c.id}">[${c.subject}] ${c.name} (${c.teacher||''}) ${c.days.join('\u00b7')} ${c.start}${badge}</option>`;
+  }).join('');
+  document.getElementById('holiday-overlay').classList.add('open');
+}
+function closeHolidayOverlay(){document.getElementById('holiday-overlay').classList.remove('open')}
+
+function saveHolidayMulti(){
+  const scope=document.getElementById('h-scope').value;
+  const courseId=scope==='course'?document.getElementById('h-course').value:'';
+  const reason=document.getElementById('h-reason').value.trim();
+  const rows=document.querySelectorAll('#h-date-ranges .date-range-row');
+  if(!rows.length){alert('\ub0a0\uc9dc \uad6c\uac04\uc744 \ud558\ub098 \uc774\uc0c1 \ucd94\uac00\ud574\uc8fc\uc138\uc694');return}
+
+  let added=0;
+  rows.forEach(row=>{
+    const startStr=row.querySelector('.dr-start').value;
+    const endStr=row.querySelector('.dr-end').value;
+    if(!startStr||!endStr){return;}
+    const start=new Date(startStr), end=new Date(endStr);
+    if(start>end){alert(`\ub0a0\uc9dc \uc21c\uc11c\uac00 \uc798\ubabb\ub410\uc2b5\ub2c8\ub2e4: ${startStr} ~ ${endStr}`);return;}
+    const cur=new Date(start);
+    while(cur<=end){
+      const dateIso=isoDate(cur);
+      if(scope==='all'){
+        holidays=holidays.filter(h=>!(h.date===dateIso&&h.scope==='all'));
+      } else {
+        holidays=holidays.filter(h=>!(h.date===dateIso&&h.scope==='course'&&h.courseId===courseId));
+      }
+      holidays.push({date:dateIso,scope,courseId,reason});
+      sheetPost('saveHoliday',{date:dateIso,scope,courseId,reason});
+      added++;
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+
+  if(added>0){
+    saveHolidays();closeHolidayOverlay();render();
+  }
+}
+function saveHoliday(){saveHolidayMulti();}
+
+// \ube60\ub978 \ud734\uac15
+function quickHoliday(courseId, dateIso){
+  hideDP();
+  const c=courses.find(x=>x.id===courseId);
+  const label=c?`[${c.subject}] ${c.name} (${dateIso})`:'';
+  document.getElementById('qh-label').textContent=label;
+  document.getElementById('qh-course-id').value=courseId;
+  document.getElementById('qh-date').value=dateIso;
+  document.getElementById('qh-reason').value='';
+  document.getElementById('qh-overlay').classList.add('open');
+}
+function saveQuickHoliday(){
+  const courseId=document.getElementById('qh-course-id').value;
+  const dateIso=document.getElementById('qh-date').value;
+  const reason=document.getElementById('qh-reason').value.trim();
+  holidays.push({date:dateIso,scope:'course',courseId,reason});
+  saveHolidays();
+  document.getElementById('qh-overlay').classList.remove('open');
+  render();
+  sheetPost('saveHoliday',{date:dateIso,scope:'course',courseId,reason});
+}
+function closeQhOverlay(){document.getElementById('qh-overlay').classList.remove('open');}
+
+// ═══════════════════════════════
+//  \ub300\uccb4 \uc218\uc5c5
+// ═══════════════════════════════
+function openReplaceModal(courseId,origDate){
+  const c=courses.find(x=>x.id===courseId);
+  if(!c) return;
+  hideDP();
+  document.getElementById('r-course-id').value=courseId;
+  document.getElementById('r-orig-date-val').value=origDate;
+  document.getElementById('r-orig-date').textContent=origDate;
+  document.getElementById('r-course-name').textContent=`[${c.subject}] ${c.name}`;
+  document.getElementById('r-repl-date').value=origDate;
+  document.getElementById('r-start').value=c.start;
+  document.getElementById('r-end').value=c.end;
+  document.getElementById('r-room').value=c.room||'';
+  document.getElementById('r-teacher').value='';
+  document.getElementById('r-reason').value='';
+  document.getElementById('replace-overlay').classList.add('open');
+}
+function closeReplaceOverlay(){document.getElementById('replace-overlay').classList.remove('open')}
+
+function saveReplace(){
+  const courseId=document.getElementById('r-course-id').value;
+  const origDate=document.getElementById('r-orig-date-val').value;
+  const replDate=document.getElementById('r-repl-date').value;
+  if(!replDate){alert('\ub300\uccb4 \ub0a0\uc9dc\ub97c \uc120\ud0dd\ud574\uc8fc\uc138\uc694');return}
+  const start=document.getElementById('r-start').value;
+  const end=document.getElementById('r-end').value;
+  const room=document.getElementById('r-room').value.trim();
+  const teacher=document.getElementById('r-teacher').value.trim();
+  const reason=document.getElementById('r-reason').value.trim();
+  const sameDay=origDate===replDate;
+  const id='R'+Date.now();
+  const data={id,courseId,origDate,replDate,start,end,room,reason,sameDay,teacher};
+  replaces.push(data);
+  // isClosed\ub294 replaces \ubc30\uc5f4 \uae30\ubc18 - \ubcc4\ub3c4 \ud734\uac15 \ucd94\uac00 \ubd88\ud544\uc694
+  closeReplaceOverlay();render();
+  sheetPost('saveReplace',data);
+}
+
+function editReplace(replaceId){
+  const r=replaces.find(x=>x.id===replaceId);
+  if(!r) return;
+  const c=courses.find(x=>x.id===r.courseId);
+  if(!c) return;
+  hideDP();
+  document.getElementById('r-course-id').value=r.courseId;
+  document.getElementById('r-orig-date-val').value=r.origDate;
+  document.getElementById('r-orig-date').textContent=r.origDate;
+  document.getElementById('r-course-name').textContent=`[${c.subject}] ${c.name}`;
+  document.getElementById('r-repl-date').value=r.replDate;
+  document.getElementById('r-start').value=r.start||c.start;
+  document.getElementById('r-end').value=r.end||c.end;
+  document.getElementById('r-room').value=r.room||c.room||'';
+  document.getElementById('r-teacher').value=r.teacher||'';
+  document.getElementById('r-reason').value=r.reason||'';
+  replaces=replaces.filter(x=>x.id!==replaceId);
+  sheetPost('deleteReplace',{id:replaceId});
+  document.getElementById('replace-overlay').classList.add('open');
+}
+
+function deleteReplace(replaceId,origDate,courseId){
+  const r=replaces.find(x=>x.id===replaceId);
+  replaces=replaces.filter(x=>x.id!==replaceId);
+  if(r&&!r.sameDay){
+    holidays=holidays.filter(h=>!(h.date===origDate&&h.scope==='course'&&h.courseId===courseId));
+    sheetPost('deleteHoliday',{date:origDate,scope:'course',courseId});
+  }
+  hideDP();render();
+  sheetPost('deleteReplace',{id:replaceId});
+}
+
+// ═══════════════════════════════
+//  \ube44\uace0(duty) / \ub0a0\uc9dc \uc774\ubca4\ud2b8
+// ═══════════════════════════════
+function openDutyModal(dateIso){
+  document.getElementById('duty-date-label').textContent=dateIso+' \ube44\uace0';
+  document.getElementById('duty-date-val').value=dateIso;
+  const existing=duty.filter(d=>d.date===dateIso).flatMap(d=>d.names);
+  document.getElementById('duty-names').value=existing.join(', ');
+  document.getElementById('duty-del-btn').style.display=existing.length?'':'none';
+  document.getElementById('duty-overlay').classList.add('open');
+}
+function closeDutyOverlay(){document.getElementById('duty-overlay').classList.remove('open')}
+function saveDutyEntry(){
+  const dateIso=document.getElementById('duty-date-val').value;
+  const names=document.getElementById('duty-names').value.split(/[,\u00b7]/).map(s=>s.trim()).filter(Boolean);
+  duty=duty.filter(d=>d.date!==dateIso);
+  if(names.length) duty.push({date:dateIso,names});
+  closeDutyOverlay();render();
+  sheetPost('saveDuty',{date:dateIso,names});
+}
+function deleteDutyEntry(){
+  const dateIso=document.getElementById('duty-date-val').value;
+  duty=duty.filter(d=>d.date!==dateIso);
+  closeDutyOverlay();render();
+  sheetPost('deleteDuty',{date:dateIso});
+}
+
+function onEventTypeChange(){
+  const type=document.getElementById('event-type').value;
+  const inp=document.getElementById('event-content');
+  const lbl=document.getElementById('event-content-label');
+  if(type==='\uc6b4\uc601\uc2dc\uac04'){inp.placeholder='\uc608) 10:00~22:00 \ub610\ub294 \ud734\ubb34';lbl.textContent='\uc6b4\uc601\uc2dc\uac04 *';}
+  else if(type==='\uae30\ud0c0'){inp.placeholder='\uc608) \uc0c1\ub2f4\uc2e4 \ubcc0\uacbd, \uc870\uae30\uc885\uac15';lbl.textContent='\ube44\uace0 \ub0b4\uc6a9 *';}
+  else{inp.placeholder='\uc608) \ud604\ucda9\uc77c, \uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac';lbl.textContent='\ub0b4\uc6a9 *';}
+}
+function openEventModal(dateIso){
+  document.getElementById('event-date-val').value=dateIso;
+  document.getElementById('event-content').value='';
+  document.getElementById('event-type').value='\uc6b4\uc601\uc2dc\uac04';
+  const existing=dateEvents.filter(e=>e.date===dateIso);
+  document.getElementById('event-del-btn').style.display=existing.length?'':'none';
+  onEventTypeChange();
+  document.getElementById('event-overlay').classList.add('open');
+}
+function closeEventOverlay(){document.getElementById('event-overlay').classList.remove('open')}
+function saveDateEvent(){
+  const date=document.getElementById('event-date-val').value;
+  const content=document.getElementById('event-content').value.trim();
+  if(!content){alert('\ub0b4\uc6a9\uc744 \uc785\ub825\ud574\uc8fc\uc138\uc694');return}
+  const type=document.getElementById('event-type').value;
+  if(type==='\uc6b4\uc601\uc2dc\uac04') dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type==='\uc6b4\uc601\uc2dc\uac04'));
+  else if(type==='\uae30\ud0c0') dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type==='\uae30\ud0c0'));
+  dateEvents.push({date,content,type});
+  closeEventOverlay();render();
+  sheetPost('saveEvent',{date,content,type});
+}
+function deleteDateEvent(){
+  const date=document.getElementById('event-date-val').value;
+  const type=document.getElementById('event-type').value;
+  dateEvents=dateEvents.filter(e=>!(e.date===date&&e.type===type));
+  closeEventOverlay();render();
+  sheetPost('deleteEvent',{date,type});
+}
+
+// ═══════════════════════════════
+//  DRAG & DROP (\uad00\ub9ac\uc790)
+// ═══════════════════════════════
+let dragState=null;
+function initDrag(ev, c, di, subj, li){
+  if(!IS_ADMIN||c._isReplace) return;
+  ev.draggable=true;
+  ev.addEventListener('dragstart',e=>{
+    dragState={courseId:c.id,origDi:di,course:c};
+    ev.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',c.id);
+  });
+  ev.addEventListener('dragend',()=>{
+    ev.classList.remove('dragging');
+    document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));
+    dragState=null;
+  });
+}
+function initDropZone(cell, di, d){
+  if(!IS_ADMIN) return;
+  cell.addEventListener('dragover',e=>{
+    if(!dragState) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    cell.classList.add('drop-target');
+  });
+  cell.addEventListener('dragleave',()=>cell.classList.remove('drop-target'));
+  cell.addEventListener('drop',e=>{
+    e.preventDefault();
+    cell.classList.remove('drop-target');
+    if(!dragState) return;
+    const {origDi,course,courseId}=dragState;
+    const targetDate=isoDate(d);
+    const origDateStr=isoDate(getDaysToRender()[origDi]);
+    if(origDi===di){ dragState=null; return; }
+    const targetKr=dayKr(d);
+    if(confirm(`"${course.name}"\uc744 ${origDateStr} \u2192 ${targetDate}(${targetKr})\ub85c \uc774\ub3d9\ud560\uae4c\uc694?`)){
+      openEditModal(courseId);
+      setTimeout(()=>{
+        document.querySelectorAll('#day-checks .day-row').forEach(row=>{
+          const cb=row.querySelector('input[type=checkbox]');
+          if(!cb) return;
+          if(cb.value===targetKr){
+            cb.checked=true;
+            cb.dispatchEvent(new Event('change'));
+          } else if(course.days.length===1){
+            cb.checked=false;
+            cb.dispatchEvent(new Event('change'));
+          }
+        });
+      },100);
+    }
+    dragState=null;
+  });
+}
+
+// ═══════════════════════════════
+//  \uad00\ub9ac\uc790 \ub85c\uadf8\uc778 / \ud544\ud130 / INIT
+// ═══════════════════════════════
+function adminLogin(){
+  const pw=prompt('\uad00\ub9ac\uc790 \ube44\ubc00\ubc88\ud638\ub97c \uc785\ub825\ud558\uc138\uc694');
+  if(pw===null) return;
+  sessionStorage.setItem('admin_pw',pw);
+  location.search='?admin';
+}
+
+// \ud544\ud130 \uce69
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    const f=chip.dataset.f, v=chip.dataset.v;
+    const set=f==='subject'?activeSubs:activeTypes;
+    if(v==='\uc804\uccb4'){
+      set.clear(); set.add('\uc804\uccb4');
+    } else {
+      set.delete('\uc804\uccb4');
+      if(set.has(v)) set.delete(v); else set.add(v);
+      if(!set.size) set.add('\uc804\uccb4');
+    }
+    document.querySelectorAll(`.chip[data-f="${f}"]`).forEach(ch=>{
+      ch.classList.toggle('on', set.has(ch.dataset.v));
+    });
+    render();
+  });
+});
+
+// \uad00\ub9ac\uc790 UI \ud45c\uc2dc
+if(IS_ADMIN){
+  const ab=document.getElementById('admin-btns');
+  if(ab) ab.style.display='';
+  const lb=document.getElementById('admin-login-btn');
+  if(lb) lb.style.display='none';
+  const vb=document.getElementById('viewer-bar');
+  if(vb) vb.style.display='none';
+} else {
+  const vb=document.getElementById('viewer-bar');
+  if(vb) vb.style.display='';
+}
+
+window.addEventListener('resize', ()=>render());
+
+// ── INIT ──
+load();
+</script>
+</body>
+</html>
