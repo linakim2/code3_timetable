@@ -290,7 +290,6 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   .col-head{font-size:10px;padding:6px 2px}
   .col-head .sub{font-size:9px}
   .tc{font-size:8px;padding:1px 3px 0 0;width:36px;min-width:36px}
-  .cal-grid{grid-template-columns:36px repeat(var(--day-cols,7),minmax(90px,1fr)) !important}
 
   /* 이벤트 블록 */
   .ev{padding:2px 4px}
@@ -1100,7 +1099,7 @@ function render(){
   const activeSubjects=SUBJ_ORDER.filter(s=>days.some((_,di)=>(dayGroups[di][s]||[]).length>0));
 
   // CSS grid columns
-  const isMobile=window.innerWidth<=900;
+  const isMobile=window.innerWidth<=770;
   const emptyLaneW=isMobile?'40px':'54px';
   const laneW=isMobile?'76px':'100px'; // 고정 너비 - 내용에 따라 늘어나지 않음
   const colWidths=colSpec.map(s=>s.type==='time'?(isMobile?'36px':'48px'):s.isEmpty?emptyLaneW:laneW);
