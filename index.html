@@ -263,83 +263,11 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
 /* ═══════════════════════════════
    반응형 - 모바일
 ═══════════════════════════════ */
-@media (max-width: 768px) {
-  /* 헤더 */
-  header{padding:10px 14px;gap:8px}
-  .logo h1{font-size:15px}
-  .logo p{font-size:10px}
-  .hbtns{gap:5px}
-  .btn{font-size:11px;padding:5px 10px}
 
-  /* 네비 바 */
-  .nav-bar{padding:7px 14px;gap:6px;flex-direction:column;align-items:stretch}
-  .filters{justify-content:flex-start}
-  .nav-center{justify-content:center}
-  .nav-label{font-size:12px;min-width:120px}
-  .filters{gap:4px;justify-content:center}
-  .chip{font-size:10px;padding:3px 9px}
-  .sep{display:block;width:100%;height:0;border:none}
 
-  /* 메인 */
-  main{padding:10px 10px}
-  .legend{gap:8px;margin-bottom:8px}
-  .leg{font-size:10px}
 
-  /* 캘린더 */
-  :root{--slot:28px}
-  .col-head{font-size:10px;padding:6px 2px}
-  .col-head .sub{font-size:9px}
-  .tc{font-size:8px;padding:1px 3px 0 0;width:36px;min-width:36px}
 
-  /* 이벤트 블록 */
-  .ev{padding:2px 4px}
-  .ev-name{font-size:8.5px}
-  .ev-badge{font-size:7px;padding:1px 3px}
-  .ev-teacher{font-size:7.5px}
-  .ev-time{font-size:7px}
-  .ev-room{font-size:8.5px}
 
-  /* 팝업 */
-  .dp{min-width:180px;max-width:90vw;padding:12px;font-size:12px}
-  .dp-hd h3{font-size:12px}
-  .dpb{font-size:10px;padding:3px 7px}
-  .dp-row{font-size:11px}
-
-  /* 모달 */
-  .modal{padding:18px;width:95vw}
-  .fg{grid-template-columns:1fr}
-  .mhd h2{font-size:14px}
-  .field label{font-size:11px}
-  .field input,.field select{font-size:12px;padding:7px 9px}
-
-  /* 배너 */
-  .date-range-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.date-range-row input{font-family:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--bdr);border-radius:7px;flex:1;min-width:120px}
-.date-range-row .remove-btn{font-size:11px;color:#c00;border:1px solid #c00;background:#fff;border-radius:5px;padding:3px 8px;cursor:pointer;white-space:nowrap;font-family:inherit}
-.date-range-row .remove-btn:hover{background:#FEE9E9}
-.viewer-limit-banner{font-size:11px;padding:5px 14px}
-  #viewer-bar{font-size:10px;padding:4px 14px}
-
-  /* 로딩 */
-  .loading-text{font-size:12px}
-}
-
-@media (max-width: 480px) {
-  header{flex-direction:column;align-items:flex-start;gap:6px}
-  .hbtns{width:100%;justify-content:flex-end}
-  .nav-center{gap:6px}
-  .nav-label{font-size:11px;min-width:100px}
-  :root{--slot:26px}
-  .cal-grid{grid-template-columns:32px repeat(var(--day-cols,7),minmax(72px,1fr)) !important}
-  .tc{width:32px;font-size:7px}
-  .col-head{font-size:9px}
-}
-
-@media (max-width: 480px) {
-  .btn-full{display:none}
-  .btn-short{display:inline !important}
-  .btn{padding:5px 8px}
-}
 </style>
 </head>
 <body>
@@ -1100,9 +1028,9 @@ function render(){
 
   // CSS grid columns
   const isMobile=window.innerWidth<=770;
-  const emptyLaneW=isMobile?'40px':'54px';
-  const laneW=isMobile?'76px':'100px'; // 고정 너비 - 내용에 따라 늘어나지 않음
-  const colWidths=colSpec.map(s=>s.type==='time'?(isMobile?'36px':'48px'):s.isEmpty?emptyLaneW:laneW);
+  const emptyLaneW='54px';
+  const laneW='100px'; // 고정 너비 - 모든 화면 동일
+  const colWidths=colSpec.map(s=>s.type==='time'?'48px':s.isEmpty?emptyLaneW:laneW);
   grid.style.gridTemplateColumns=colWidths.join(' ');
   // 모바일 반응형용 열 수 CSS 변수
   document.documentElement.style.setProperty('--day-cols', colWidths.length-1);
