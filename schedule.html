@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CODE3 근무 당직표</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --w:#FFFFFF;--gray-bg:#F7F6F3;--bdr:#E8E6E0;
+  --txt:#1A1A18;--txt2:#6B6860;
+  --blue-m:#378ADD;--blue-l:#EBF3FC;
+  --red:#E05252;--green:#1D9E75;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--gray-bg);color:var(--txt);min-height:100vh}
+
+header{background:var(--w);border-bottom:1px solid var(--bdr);padding:13px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+header h1{font-size:16px;font-weight:700}
+.header-btns{display:flex;gap:8px;align-items:center}
+.back-btn{font-size:12px;color:var(--txt2);text-decoration:none;padding:5px 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--w)}
+.base-btn{font:inherit;font-size:12px;padding:5px 12px;border:1px solid var(--bdr);border-radius:8px;background:var(--w);cursor:pointer;color:var(--txt2)}
+.base-btn:hover{background:var(--gray-bg)}
+
+.nav-bar{background:var(--w);border-bottom:1px solid var(--bdr);padding:8px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:57px;z-index:99}
+.nav-btn{font:inherit;font-size:13px;padding:5px 14px;border:1px solid var(--bdr);border-radius:20px;background:var(--w);cursor:pointer;color:var(--txt2)}
+.nav-btn:hover{background:var(--gray-bg)}
+.nav-label{font-size:14px;font-weight:600;min-width:80px;text-align:center}
+.view-toggle{margin-left:auto;display:flex;gap:4px}
+.vt-btn{font:inherit;font-size:12px;padding:4px 12px;border:1px solid var(--bdr);border-radius:16px;background:var(--w);cursor:pointer;color:var(--txt2)}
+.vt-btn.active{background:var(--txt);color:#fff;border-color:var(--txt)}
+.today-btn{font:inherit;font-size:12px;padding:4px 12px;border:1px solid var(--bdr);border-radius:16px;background:var(--w);cursor:pointer}
+.today-btn:hover{background:var(--gray-bg)}
+
+.table-wrap{padding:16px 24px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;background:var(--w);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);min-width:600px}
+th,td{border:1px solid var(--bdr);padding:0;font-size:12px;vertical-align:top}
+th{background:#FAFAF8;font-weight:600;text-align:center;padding:8px 6px;color:var(--txt2);white-space:nowrap}
+th.teacher-col{min-width:80px;width:80px;position:sticky;left:0;z-index:5;background:#FAFAF8}
+td.teacher-cell{position:sticky;left:0;z-index:4;background:var(--w);padding:8px 6px;font-weight:600;font-size:12px;text-align:center;min-width:80px;border-right:2px solid var(--bdr)}
+td.day-cell{min-width:90px;min-height:50px;padding:5px 7px;cursor:pointer;transition:background .1s;position:relative}
+td.day-cell:hover{background:#F5F9FF}
+td.day-cell.today-col{background:#EBF3FC}
+td.day-cell.holiday-col{background:#FFF5F5}
+td.day-cell.off{background:#FAFAF8}
+td.day-cell.future-off{background:#FAFAF8;opacity:.5}
+
+.date-header{text-align:center;padding:6px 4px}
+.date-num{font-size:12px;font-weight:600}
+.date-day{font-size:10px;color:var(--txt2);margin-top:1px}
+.date-holiday{font-size:9px;color:var(--red);font-weight:600;margin-top:1px}
+.today-head .date-num{color:var(--blue-m)}
+.sun .date-num,.sun .date-day{color:var(--red)}
+.sat .date-num,.sat .date-day{color:var(--blue-m)}
+
+.work-content{display:flex;flex-direction:column;gap:2px}
+.wt-base{font-size:11px;color:var(--txt)}
+.wt-strike{text-decoration:line-through;color:#bbb;font-size:10px}
+.wt-change{font-size:11px;font-weight:600;color:var(--red)}
+.wt-note{font-size:10px;color:var(--txt2);font-style:italic}
+.wt-off{font-size:10px;color:#ccc;text-align:center;padding:4px 0}
+.edit-hint{position:absolute;top:3px;right:4px;font-size:9px;color:#ccc;opacity:0;transition:opacity .15s}
+td.day-cell:hover .edit-hint{opacity:1}
+
+/* 모달 공통 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--w);border-radius:16px;padding:24px;width:min(460px,95vw);max-height:90vh;overflow-y:auto}
+.mhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.mhd h2{font-size:16px;font-weight:700}
+.xbtn{font:inherit;font-size:20px;background:none;border:none;cursor:pointer;color:var(--txt2);line-height:1}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:600;color:var(--txt2)}
+.field input,.field select,.field textarea{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--bdr);border-radius:8px;outline:none;width:100%}
+.field input:focus,.field select:focus{border-color:var(--blue-m)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.macts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.btn{font:inherit;font-size:13px;padding:8px 18px;border-radius:20px;border:1px solid var(--bdr);background:var(--w);cursor:pointer;color:var(--txt2)}
+.btn:hover{background:var(--gray-bg)}
+.btn-p{background:var(--txt);color:#fff;border-color:var(--txt)}
+.btn-p:hover{opacity:.88}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-danger:hover{opacity:.88}
+
+/* 기본 근무 설정 모달 */
+.base-teacher-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.base-teacher-name{font-size:13px;font-weight:600;min-width:70px}
+.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.day-label{font-size:10px;text-align:center;color:var(--txt2);font-weight:600}
+.base-day-row{display:grid;grid-template-columns:24px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:6px;border-bottom:1px solid var(--bdr);padding-bottom:6px}
+.base-day-row:last-child{border-bottom:none}
+.teacher-label{font-size:11px;font-weight:600;color:var(--txt2)}
+.time-pair{display:flex;flex-direction:column;gap:2px}
+.time-pair input{font:inherit;font-size:10px;padding:3px 4px;border:1px solid var(--bdr);border-radius:5px;width:100%;text-align:center}
+
+.loading{text-align:center;padding:60px;color:var(--txt2);font-size:13px}
+.section-title{font-size:11px;color:var(--txt2);font-weight:600;padding:6px 24px;background:#FAFAF8;border-bottom:1px solid var(--bdr)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CODE3 근무 당직표</h1>
+  <div class="header-btns">
+    <button class="base-btn" onclick="openBaseModal()">⚙ 기본 근무 설정</button>
+    <a href="index.html" class="back-btn">← 시간표</a>
+  </div>
+</header>
+
+<div class="nav-bar">
+  <button class="nav-btn" onclick="move(-1)">←</button>
+  <span class="nav-label" id="nav-label"></span>
+  <button class="nav-btn" onclick="move(1)">→</button>
+  <button class="today-btn" onclick="goToday()">오늘</button>
+  <div class="view-toggle">
+    <button class="vt-btn active" id="vt-month" onclick="setView('month')">월간</button>
+    <button class="vt-btn" id="vt-week" onclick="setView('week')">주간</button>
+  </div>
+</div>
+
+<div id="loading" class="loading">데이터 불러오는 중...</div>
+<div id="main" style="display:none">
+  <div class="table-wrap">
+    <div id="table-container"></div>
+  </div>
+</div>
+
+<!-- 셀 편집 모달 -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <div class="mhd">
+      <h2 id="edit-title">근무 수정</h2>
+      <button class="xbtn" onclick="closeEdit()">×</button>
+    </div>
+    <p id="edit-label" style="font-size:12px;color:var(--txt2);margin-bottom:14px;font-weight:500"></p>
+    <input type="hidden" id="edit-date">
+    <input type="hidden" id="edit-teacher">
+    <div class="field-row">
+      <div class="field">
+        <label>변경 시작 시간</label>
+        <input type="time" id="edit-start" placeholder="변경 시에만 입력">
+      </div>
+      <div class="field">
+        <label>변경 종료 시간</label>
+        <input type="time" id="edit-end">
+      </div>
+    </div>
+    <div class="field">
+      <label>특이사항 메모</label>
+      <input id="edit-note" placeholder="예) 외출, 조기퇴근, 휴무">
+    </div>
+    <div class="macts">
+      <button class="btn btn-danger" id="edit-del-btn" onclick="deleteEntry()" style="margin-right:auto;display:none">초기화</button>
+      <button class="btn" onclick="closeEdit()">취소</button>
+      <button class="btn btn-p" onclick="saveEntry()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 기본 근무 설정 모달 -->
+<div class="overlay" id="base-overlay">
+  <div class="modal" style="width:min(700px,95vw)">
+    <div class="mhd">
+      <h2>기본 근무 설정</h2>
+      <button class="xbtn" onclick="closeBaseModal()">×</button>
+    </div>
+    <p style="font-size:11px;color:var(--txt2);margin-bottom:14px">요일별 기본 근무시간을 설정합니다. 없는 요일은 비워두세요.</p>
+    <div id="base-form"></div>
+    <div class="macts">
+      <button class="btn" onclick="closeBaseModal()">취소</button>
+      <button class="btn btn-p" onclick="saveBaseAll()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec';
+const DAY_KR = ['일','월','화','수','목','금','토'];
+const DAYS = ['월','화','수','목','금','토','일'];
+const KR_HOLIDAYS = {
+  '2025-01-01':'신정','2025-01-28':'설날 연휴','2025-01-29':'설날','2025-01-30':'설날 연휴',
+  '2025-03-01':'삼일절','2025-05-05':'어린이날','2025-05-06':'어린이날 대체','2025-05-15':'부처님오신날',
+  '2025-06-06':'현충일','2025-08-15':'광복절','2025-09-06':'추석 연휴','2025-09-07':'추석',
+  '2025-09-08':'추석 연휴','2025-10-03':'개천절','2025-10-09':'한글날','2025-12-25':'크리스마스',
+  '2026-01-01':'신정','2026-01-28':'설날 연휴','2026-01-29':'설날','2026-01-30':'설날 연휴',
+  '2026-03-01':'삼일절','2026-03-02':'삼일절 대체','2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체',
+  '2026-06-03':'지방선거','2026-06-06':'현충일','2026-08-15':'광복절','2026-08-17':'광복절 대체',
+  '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절','2026-10-05':'개천절 대체','2026-10-09':'한글날','2026-12-25':'크리스마스',
+  '2027-01-01':'신정','2027-02-06':'설날 연휴','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'설날 대체',
+  '2027-03-01':'삼일절','2027-05-01':'근로자의 날','2027-05-03':'근로자의 날 대체',
+  '2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일',
+  '2027-08-15':'광복절','2027-08-16':'광복절 대체',
+  '2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴',
+  '2027-10-03':'개천절','2027-10-04':'개천절 대체','2027-10-09':'한글날','2027-10-11':'한글날 대체',
+  '2027-12-25':'크리스마스',
+};
+
+let baseWork=[], schedule=[];
+let curYear=new Date().getFullYear(), curMonth=new Date().getMonth();
+let curWeekStart=getMonday(new Date());
+let viewMode='month';
+
+function pad2(n){return String(n).padStart(2,'0')}
+function isoDate(d){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`}
+function parseDate(s){
+  if(!s) return '';
+  if(typeof s==='string'&&s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
+  const d=new Date(s); if(isNaN(d)) return String(s);
+  return isoDate(d);
+}
+function getMonday(d){
+  const day=d.getDay(), diff=d.getDate()-(day===0?6:day-1);
+  const m=new Date(d); m.setDate(diff); m.setHours(0,0,0,0); return m;
+}
+
+async function sheetPost(action, data){
+  try{ await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action,...data})}); }
+  catch(e){ console.warn('POST failed',e); }
+}
+
+async function load(){
+  try{
+    const res=await fetch(`${SCRIPT_URL}?action=allWork`);
+    const json=await res.json();
+    baseWork=json.data.baseWork||[];
+    schedule=(json.data.schedule||[]).map(s=>({...s,date:parseDate(s.date)}));
+    document.getElementById('loading').style.display='none';
+    document.getElementById('main').style.display='';
+    render();
+  }catch(e){
+    document.getElementById('loading').textContent='로딩 실패. SCRIPT_URL을 확인해주세요.';
+  }
+}
+
+function setView(v){
+  viewMode=v;
+  document.getElementById('vt-month').classList.toggle('active',v==='month');
+  document.getElementById('vt-week').classList.toggle('active',v==='week');
+  render();
+}
+function move(d){
+  if(viewMode==='month'){
+    curMonth+=d; if(curMonth>11){curMonth=0;curYear++;} if(curMonth<0){curMonth=11;curYear--;}
+  } else {
+    curWeekStart=new Date(curWeekStart); curWeekStart.setDate(curWeekStart.getDate()+d*7);
+  }
+  render();
+}
+function goToday(){
+  const n=new Date(); curYear=n.getFullYear(); curMonth=n.getMonth(); curWeekStart=getMonday(n); render();
+}
+
+function getDates(){
+  if(viewMode==='month'){
+    const arr=[]; const d=new Date(curYear,curMonth,1);
+    while(d.getMonth()===curMonth){arr.push(new Date(d));d.setDate(d.getDate()+1);}
+    return arr;
+  } else {
+    const arr=[]; const d=new Date(curWeekStart);
+    for(let i=0;i<7;i++){arr.push(new Date(d));d.setDate(d.getDate()+1);}
+    return arr;
+  }
+}
+
+function getBase(teacher,dayKr){
+  const b=baseWork.find(x=>x.teacher===teacher);
+  return b?.schedule[dayKr]||null;
+}
+function getSch(teacher,dateIso){
+  return schedule.find(s=>s.date===dateIso&&s.teacher===teacher)||null;
+}
+
+function render(){
+  const dates=getDates();
+  const today=isoDate(new Date());
+  const teachers=baseWork.map(b=>b.teacher);
+
+  if(viewMode==='month'){
+    document.getElementById('nav-label').textContent=`${curYear}.${pad2(curMonth+1)}`;
+  } else {
+    const e=new Date(curWeekStart); e.setDate(e.getDate()+6);
+    document.getElementById('nav-label').textContent=
+      `${pad2(curWeekStart.getMonth()+1)}/${pad2(curWeekStart.getDate())} ~ ${pad2(e.getMonth()+1)}/${pad2(e.getDate())}`;
+  }
+
+  let html='<table><thead><tr><th class="teacher-col">선생님</th>';
+  dates.forEach(d=>{
+    const iso=isoDate(d), dow=d.getDay();
+    const isToday=iso===today, holiday=KR_HOLIDAYS[iso];
+    const cls=['date-header',isToday?'today-head':'',dow===0?'sun':dow===6?'sat':''].filter(Boolean).join(' ');
+    html+=`<th><div class="${cls}">
+      <div class="date-num">${pad2(d.getDate())}</div>
+      <div class="date-day">${DAY_KR[dow]}</div>
+      ${holiday?`<div class="date-holiday">${holiday}</div>`:''}
+    </div></th>`;
+  });
+  html+='</tr></thead><tbody>';
+
+  if(!teachers.length){
+    html+=`<tr><td colspan="${dates.length+1}" style="text-align:center;padding:30px;color:var(--txt2)">
+      기본 근무 설정 버튼을 눌러 선생님별 근무시간을 등록해주세요.
+    </td></tr>`;
+  }
+
+  teachers.forEach(teacher=>{
+    html+=`<tr><td class="teacher-cell">${teacher}</td>`;
+    dates.forEach(d=>{
+      const iso=isoDate(d), dow=d.getDay();
+      const dayKr=DAY_KR[dow];
+      const isToday=iso===today;
+      const holiday=KR_HOLIDAYS[iso];
+      const base=getBase(teacher, holiday?'일':dayKr);
+      const sch=getSch(teacher,iso);
+
+      let cls='day-cell';
+      if(isToday) cls+=' today-col';
+      if(holiday) cls+=' holiday-col';
+      if(!base&&!sch) cls+=' off';
+
+      let inner='<div class="work-content">';
+      if(sch&&(sch.start||sch.end)){
+        if(base) inner+=`<div class="wt-strike">${base.start}~${base.end}</div>`;
+        inner+=`<div class="wt-change">${sch.start||'?'}~${sch.end||'?'}</div>`;
+        if(sch.note) inner+=`<div class="wt-note">${sch.note}</div>`;
+      } else if(base){
+        inner+=`<div class="wt-base">${base.start}~${base.end}</div>`;
+        if(sch?.note) inner+=`<div class="wt-note" style="color:var(--red)">${sch.note}</div>`;
+      } else {
+        inner+='<div class="wt-off">-</div>';
+      }
+      inner+='</div>';
+      inner+='<span class="edit-hint">✎</span>';
+
+      html+=`<td class="${cls}" onclick="openEdit('${iso}','${teacher}')">${inner}</td>`;
+    });
+    html+='</tr>';
+  });
+
+  html+='</tbody></table>';
+  document.getElementById('table-container').innerHTML=html;
+}
+
+// ── 셀 편집 ──
+function openEdit(dateIso, teacher){
+  const dow=new Date(dateIso+'T00:00:00').getDay();
+  const holiday=KR_HOLIDAYS[dateIso];
+  const base=getBase(teacher, holiday?'일':DAY_KR[dow]);
+  const sch=getSch(teacher,dateIso);
+  document.getElementById('edit-date').value=dateIso;
+  document.getElementById('edit-teacher').value=teacher;
+  document.getElementById('edit-title').textContent=`${teacher} 근무 수정`;
+  document.getElementById('edit-label').textContent=
+    `${dateIso} (${DAY_KR[dow]})${holiday?' · '+holiday:''}${base?' · 기본: '+base.start+'~'+base.end:''}`;
+  document.getElementById('edit-start').value=sch?.start||'';
+  document.getElementById('edit-end').value=sch?.end||'';
+  document.getElementById('edit-note').value=sch?.note||'';
+  document.getElementById('edit-del-btn').style.display=sch?'':'none';
+  document.getElementById('edit-overlay').classList.add('open');
+}
+function closeEdit(){document.getElementById('edit-overlay').classList.remove('open')}
+
+function saveEntry(){
+  const date=document.getElementById('edit-date').value;
+  const teacher=document.getElementById('edit-teacher').value;
+  const start=document.getElementById('edit-start').value;
+  const end=document.getElementById('edit-end').value;
+  const note=document.getElementById('edit-note').value.trim();
+  if(!start&&!end&&!note){deleteEntry();return;}
+  schedule=schedule.filter(s=>!(s.date===date&&s.teacher===teacher));
+  schedule.push({date,teacher,start,end,note});
+  closeEdit(); render();
+  sheetPost('saveSchedule',{date,teacher,start,end,note});
+}
+
+function deleteEntry(){
+  const date=document.getElementById('edit-date').value;
+  const teacher=document.getElementById('edit-teacher').value;
+  schedule=schedule.filter(s=>!(s.date===date&&s.teacher===teacher));
+  closeEdit(); render();
+  sheetPost('deleteSchedule',{date,teacher});
+}
+
+// ── 기본 근무 설정 ──
+function openBaseModal(){
+  // 기존 선생님 + 빈 칸 1줄 추가
+  const teachers=[...new Set(baseWork.map(b=>b.teacher))];
+  if(!teachers.length) teachers.push('');
+  teachers.push('');
+
+  let html='';
+  teachers.forEach((t,ti)=>{
+    html+=`<div style="margin-bottom:16px;border:1px solid var(--bdr);border-radius:10px;padding:12px">
+      <div class="field" style="margin-bottom:10px">
+        <label>선생님 이름</label>
+        <input class="base-teacher" value="${t}" placeholder="예) 김연정T">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">`;
+    DAYS.forEach(day=>{
+      const b=baseWork.find(x=>x.teacher===t);
+      const s=b?.schedule[day]?.start||'';
+      const e=b?.schedule[day]?.end||'';
+      html+=`<div>
+        <div style="font-size:10px;font-weight:600;text-align:center;color:var(--txt2);margin-bottom:4px">${day}</div>
+        <input class="base-start" data-day="${day}" type="time" value="${s}" style="font-size:10px;padding:3px;border:1px solid var(--bdr);border-radius:5px;width:100%;font-family:inherit">
+        <input class="base-end" data-day="${day}" type="time" value="${e}" style="font-size:10px;padding:3px;border:1px solid var(--bdr);border-radius:5px;width:100%;font-family:inherit;margin-top:2px">
+      </div>`;
+    });
+    html+='</div></div>';
+  });
+  document.getElementById('base-form').innerHTML=html;
+  document.getElementById('base-overlay').classList.add('open');
+}
+function closeBaseModal(){document.getElementById('base-overlay').classList.remove('open')}
+
+async function saveBaseAll(){
+  const rows=document.querySelectorAll('#base-form > div');
+  const newBase=[];
+  rows.forEach(row=>{
+    const teacher=row.querySelector('.base-teacher').value.trim();
+    if(!teacher) return;
+    const schedule={};
+    DAYS.forEach(day=>{
+      const s=row.querySelector(`.base-start[data-day="${day}"]`).value;
+      const e=row.querySelector(`.base-end[data-day="${day}"]`).value;
+      if(s||e) schedule[day]={start:s,end:e};
+    });
+    newBase.push({teacher,schedule});
+  });
+  baseWork=newBase;
+  closeBaseModal(); render();
+  for(const b of newBase){
+    await sheetPost('saveBaseWork',{teacher:b.teacher,schedule:b.schedule});
+  }
+}
+
+load();
+</script>
+</body>
+</html>
