@@ -573,6 +573,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+
 // Sheets 연동 - localStorage 미사용
 
 // ═══════════════════════════════
@@ -1165,13 +1166,15 @@ function render(){
           let txt=`<span class="work-teacher">${bw.teacher}</span> `;
           if(base) txt+=`<span style="text-decoration:line-through;color:#bbb;font-size:9px">${base.start}~${base.end}</span> `;
           txt+=`<span style="color:var(--red-d);font-size:9px;font-weight:600">${sch.start||'?'}~${sch.end||'?'}</span>`;
-          if(sch.note) txt+=` <span style="color:#888;font-size:9px">(${sch.note.split(' · ')[0]})</span>`;
+          const tag1=(sch.note||'').startsWith('휴무')?'휴무':(sch.note||'').includes('대체')?'대체':'';
+          if(tag1) txt+=` <span style="color:#888;font-size:9px">(${tag1})</span>`;
           items.push(`<div class="work-item">${txt}</div>`);
         } else if(base){
           const isOffW=sch&&sch.note&&((sch.note||'').startsWith('휴무')||(sch.note||'').includes('대체'));
           const timeStyle=isOffW?'font-size:9px;color:#bbb;text-decoration:line-through':'font-size:9px;color:#888';
           let txt=`<span class="work-teacher">${bw.teacher}</span> <span style="${timeStyle}">${base.start}~${base.end}</span>`;
-          if(sch&&sch.note) txt+=` <span style="color:var(--red-d);font-size:9px">(${sch.note.split(' · ')[0]})</span>`;
+          const tag2=sch&&sch.note?((sch.note||'').startsWith('휴무')?'휴무':(sch.note||'').includes('대체')?'대체':''):'';
+          if(tag2) txt+=` <span style="color:var(--red-d);font-size:9px">(${tag2})</span>`;
           items.push(`<div class="work-item">${txt}</div>`);
         }
       });
