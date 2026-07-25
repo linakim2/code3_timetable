@@ -1272,7 +1272,6 @@ function render(){
       if(sp.isLast&&sp.di<days.length-1) cell.style.borderRight='2.5px solid #B0ADA6';
       cell.style.gridRow=row;
       cell.style.gridColumn=specCol(ci);
-      if(isHour) cell.style.borderTop='1px solid var(--bdr)';
       if(IS_ADMIN&&!sp.isEmpty){
         cell.addEventListener('click',()=>openAddModal(kr,mins));
         initDropZone(cell,sp.di,days[sp.di]);
@@ -2066,6 +2065,8 @@ if(IS_ADMIN){
 } else {
   const vb=document.getElementById('viewer-bar');
   if(vb) vb.style.display='';
+  const lb=document.getElementById('admin-login-btn');
+  if(lb) lb.style.display='';
 }
 
 window.addEventListener('resize', ()=>render());
