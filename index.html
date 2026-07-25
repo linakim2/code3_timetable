@@ -1165,11 +1165,13 @@ function render(){
           let txt=`<span class="work-teacher">${bw.teacher}</span> `;
           if(base) txt+=`<span style="text-decoration:line-through;color:#bbb;font-size:9px">${base.start}~${base.end}</span> `;
           txt+=`<span style="color:var(--red-d);font-size:9px;font-weight:600">${sch.start||'?'}~${sch.end||'?'}</span>`;
-          if(sch.note) txt+=` <span style="color:#888;font-size:9px">(${sch.note})</span>`;
+          if(sch.note) txt+=` <span style="color:#888;font-size:9px">(${sch.note.split(' · ')[0]})</span>`;
           items.push(`<div class="work-item">${txt}</div>`);
         } else if(base){
-          let txt=`<span class="work-teacher">${bw.teacher}</span> <span style="font-size:9px;color:#888">${base.start}~${base.end}</span>`;
-          if(sch&&sch.note) txt+=` <span style="color:var(--red-d);font-size:9px">(${sch.note})</span>`;
+          const isOffW=sch&&sch.note&&((sch.note||'').startsWith('휴무')||(sch.note||'').includes('대체'));
+          const timeStyle=isOffW?'font-size:9px;color:#bbb;text-decoration:line-through':'font-size:9px;color:#888';
+          let txt=`<span class="work-teacher">${bw.teacher}</span> <span style="${timeStyle}">${base.start}~${base.end}</span>`;
+          if(sch&&sch.note) txt+=` <span style="color:var(--red-d);font-size:9px">(${sch.note.split(' · ')[0]})</span>`;
           items.push(`<div class="work-item">${txt}</div>`);
         }
       });
