@@ -644,6 +644,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZpTL1S395wtkVX9hOX45iXRA0XPrGpNeqCxu2TNCr64LIH2oXBmOlF5OiA58AQ16QNg/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzeE3xijWrlG5rHo2o7xP8H3hz32WJm38tAhFP1Te0sVex921CBeHP-M6bV60UtoznNiA/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -729,9 +730,10 @@ async function load(){
         end:parseTime(r.end),
       }));
       duty=(allData.data.duty||[]).map(d=>({...d,date:parseDate(d.date)}));
-      // 당직표 데이터 (별도 요청)
+      // 당직표 데이터 (별도 Apps Script)
       try{
-        const workRes=await fetch(`${SCRIPT_URL}?action=allWork`);
+        if(WORK_SCRIPT_URL==='YOUR_DUTY_APPS_SCRIPT_URL_HERE') throw new Error('미설정');
+        const workRes=await fetch(`${WORK_SCRIPT_URL}?action=allWork`);
         const workJson=await workRes.json();
         baseWork=workJson.data.baseWork||[];
         workSchedule=(workJson.data.schedule||[]).map(s=>({...s,date:parseDate(s.date)}));
