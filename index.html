@@ -570,7 +570,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzxTNksbS4uNqG3FjeRDblRU92Y5PPQuVMn7dTsA3kJGcwibSqhX3w-8QCKUCFWlJW0KA/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxSFK28AXX_bcxRKsl1ba4d9M5o67qCDoGELbj4KYMSe6v8fAcfNzKe-yzO7ZAU1x3KVQ/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용) 
 
@@ -759,7 +759,7 @@ function normalizeSheetCourse(r){
   const days = Array.isArray(r.days) ? r.days
     : (r['요일'] ? String(r['요일']).split(/[,·\/]/).map(s=>s.trim()).filter(Boolean) : []);
   return {
-    id:         r.id        || r['COURSE_ID'] || '',
+    id:         String(r.id || r['COURSE_ID'] || r['course_id'] || r['강좌ID'] || r['ID'] || ''),
     subject:    r.subject   || r['과목']      || '',
     name:       r.name      || r['강좌명']    || '',
     teacher:    r.teacher   || r['선생님']    || '',
