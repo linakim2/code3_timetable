@@ -570,9 +570,9 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxPMoVoQIg1HJGzUKbIm0eYp98AYfZSCDewvCJBHf1UzqvAiYw4sZB9oT6-dguANTJIuA/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzxTNksbS4uNqG3FjeRDblRU92Y5PPQuVMn7dTsA3kJGcwibSqhX3w-8QCKUCFWlJW0KA/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용) 
 
 // Sheets 연동 - localStorage 미사용
 
@@ -1632,6 +1632,7 @@ function openAddModal(kr,mins){
 }
 
 function openEditModal(id){
+  if(!id){alert('이 강좌는 COURSE_ID가 비어 있어 정확한 선택이 불가합니다.\n새로고침하면 ID가 자동 부여됩니다. (Apps Script v2.1-idfix 이상 필요)');return}
   const c=courses.find(x=>x.id===id);
   if(!c) return;
   hideDP();
