@@ -570,7 +570,7 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxSFK28AXX_bcxRKsl1ba4d9M5o67qCDoGELbj4KYMSe6v8fAcfNzKe-yzO7ZAU1x3KVQ/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxsFxltvD3Nu_Znz_UXy2DGaHZcK_9V2cFZ_QbaH6QvL9Zg14VR4tr6v2m6UwOWCQ2QNQ/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
 const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용) 
 
@@ -805,26 +805,28 @@ function computeLanes(dayCourses){
   }
 
   for(const c of sorted){
-    const sameSbjLanes=lanes.map((l,i)=>({i,l})).filter(({l})=>l.subject===c.subject);
+    const allLanes=lanes.map((l,i)=>({i,l}));
+    const sameSbjLanes=allLanes.filter(({l})=>l.subject===c.subject);
     let bestLane=-1;
 
-    // Pass 1: 같은 선생님 + 안 겹침
-    for(const {i,l} of sameSbjLanes){
-      if(l.courses.some(x=>shareTeacher(x,c)) && l.courses.every(x=>!overlaps(x,c))){
-        bestLane=i; break;
+    // Pass 0: 같은 선생님 + 안 겹침 (과목 무관 - 선생님 동선을 한 열로)
+    if(c.teacher){
+      for(const {i,l} of allLanes){
+        if(l.courses.some(x=>shareTeacher(x,c)) && l.courses.every(x=>!overlaps(x,c))){
+          bestLane=i; break;
+        }
       }
     }
 
-    // Pass 2: 같은 강의실 + 안 겹침
+    // Pass 0.5: 같은 강의실 + 안 겹침 (과목 무관)
     if(bestLane===-1 && c.room){
-      for(const {i,l} of sameSbjLanes){
+      for(const {i,l} of allLanes){
         const sameRoom=l.courses.some(x=>x.room&&x.room===c.room);
-        const noOvlp=l.courses.every(x=>!overlaps(x,c));
-        if(sameRoom && noOvlp){ bestLane=i; break; }
+        if(sameRoom && l.courses.every(x=>!overlaps(x,c))){ bestLane=i; break; }
       }
     }
 
-    // Pass 3: 같은 과목이면 선생님 달라도 안 겹치면 같은 열
+    // Pass 1: 같은 과목 + 안 겹침
     if(bestLane===-1){
       for(const {i,l} of sameSbjLanes){
         const noOvlp=l.courses.every(x=>!overlaps(x,c));
@@ -834,7 +836,7 @@ function computeLanes(dayCourses){
       }
     }
 
-    // Pass 4: 새 열
+    // Pass 2: 새 열
     if(bestLane===-1){
       lanes.push({subject:c.subject,courses:[]});
       bestLane=lanes.length-1;
