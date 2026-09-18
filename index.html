@@ -572,7 +572,7 @@ const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzUIXLXj0vrsdkb2kHSonZI08CtnMH1uCB3z6T_ufvKobxqJkIlM5TEUjXTyeZ2iNZNhA/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용) 
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -620,7 +620,7 @@ function fetchGAS(url){
 
 async function sheetPost(action, data){
   if(!IS_ADMIN) return;
-  if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE') return; // 연동 전
+  if(SCRIPT_URL==='https://script.google.com/macros/s/AKfycbzUIXLXj0vrsdkb2kHSonZI08CtnMH1uCB3z6T_ufvKobxqJkIlM5TEUjXTyeZ2iNZNhA/exec') return; // 연동 전
   const pw=sessionStorage.getItem('admin_pw')||'';
   try{
     const url=SCRIPT_URL
@@ -655,7 +655,7 @@ async function sheetPost(action, data){
 function updateCount(){}
 
 async function load(){
-  if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'){
+  if(SCRIPT_URL==='https://script.google.com/macros/s/AKfycbzUIXLXj0vrsdkb2kHSonZI08CtnMH1uCB3z6T_ufvKobxqJkIlM5TEUjXTyeZ2iNZNhA/exec'){
     // SCRIPT_URL 미설정: 기본 샘플 데이터 사용
     courses=[];
     holidays=[];
@@ -667,7 +667,7 @@ async function load(){
   showLoading(true);
   try{
     // 시간표 + 당직 데이터 병렬 요청 (로딩 시간 단축)
-    const workPromise=(WORK_SCRIPT_URL!=='YOUR_DUTY_APPS_SCRIPT_URL_HERE')
+    const workPromise=(WORK_SCRIPT_URL!=='https://script.google.com/macros/s/AKfycbwenBrdai_pe3jIxHlIwlvmJfmjjXyjdUPsGMGaPvORkWVpk2CU451OYBt5zrZ9KEs7/exec')
       ? fetch(`${WORK_SCRIPT_URL}?action=allWork`).then(r=>r.json()).catch(()=>null)
       : Promise.resolve(null);
     const allData=await fetchGAS(SCRIPT_URL+'?action=all');
@@ -1688,11 +1688,10 @@ function saveCourse(){
   if(editingId){
     const i=courses.findIndex(x=>x.id===editingId);
     courses[i]=data;
-    sheetPost('updateCourse',data);
   } else {
     courses.push(data);
-    sheetPost('saveCourse',data);
   }
+  sheetPost('saveCourse',data); // 신규/수정 모두 saveCourse (id 기준 upsert)
   save();closeOverlay();render();
 }
 
@@ -2039,7 +2038,7 @@ async function verifyAdmin(){
     if(pw===null){ location.search=''; return false; }
     sessionStorage.setItem('admin_pw',pw);
   }
-  if(SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE') return true;
+  if(SCRIPT_URL==='https://script.google.com/macros/s/AKfycbzUIXLXj0vrsdkb2kHSonZI08CtnMH1uCB3z6T_ufvKobxqJkIlM5TEUjXTyeZ2iNZNhA/exec') return true;
   try{
     const res=await fetch(SCRIPT_URL+'?action=verify&password='+encodeURIComponent(pw),{redirect:'follow'});
     const json=await res.json();
