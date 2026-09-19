@@ -796,30 +796,56 @@ function computeLanes(dayCourses){
   const sorted=[...dayCourses].sort((a,b)=>toMins(a.start)-toMins(b.start));
   const SUBJ_ORDER={국어:0,수학:1,과탐:2,사탐:3,기타:4};
 
-  // ── 1단계: 선생님별 그룹 → 그룹 내에서 안 겹치게 lane 분할 ──
-  // (같은 선생님의 수업·클리닉이 무조건 같은 열에 세로로 이어지도록 최우선 보장)
+  // ── 1단계: (과목+강의실) 그룹, 강의실 없으면 (과목+선생님) 그룹 ──
+  // 같은 강의실에서 이어지는 일정이 한 열로 (강의실이 열의 기준)
   const groups=new Map();
   let soloSeq=0;
   sorted.forEach(c=>{
-    const key=(c.teacher||'').trim()||('__solo'+(soloSeq++));
-    if(!groups.has(key)) groups.set(key,[]);
-    groups.get(key).push(c);
+    const room=String(c.room||'').trim();
+    const teacher=String(c.teacher||'').trim();
+    const key=c.subject+'|'+(room?('R:'+room):teacher?('T:'+teacher):('S:'+(soloSeq++)));
+    if(!groups.has(key)) groups.set(key,{room,courses:[]});
+    groups.get(key).courses.push(c);
   });
 
   let lanes=[];
-  for(const [key,list] of groups){
-    const glanes=[];
-    for(const c of list){
-      let placed=false;
-      for(const gl of glanes){
-        if(gl.every(x=>!overlaps(x,c))){ gl.push(c); placed=true; break; }
+  for(const [key,g] of groups){
+    // 그룹(강의실) 내부: 선생님별로 먼저 묶어 연속성 확보
+    const tGroups=new Map();
+    let tSolo=0;
+    g.courses.forEach(c=>{
+      const tk=String(c.teacher||'').trim()||('__s'+(tSolo++));
+      if(!tGroups.has(tk)) tGroups.set(tk,[]);
+      tGroups.get(tk).push(c);
+    });
+    const tLanes=[];
+    for(const [tk,list] of tGroups){
+      const tl=[];
+      for(const c of list){
+        let placed=false;
+        for(const gl of tl){
+          if(gl.every(x=>!overlaps(x,c))){ gl.push(c); placed=true; break; }
+        }
+        if(!placed) tl.push([c]);
       }
-      if(!placed) glanes.push([c]);
+      tl.forEach(gl=>tLanes.push(gl));
     }
-    glanes.forEach(gl=>lanes.push({subject:gl[0].subject,courses:gl}));
+    // 선생님 lane끼리 안 겹치면 병합 (강의실 열 하나로)
+    const glanes=[];
+    for(const tl of tLanes){
+      let tgt=null;
+      for(const gl of glanes){
+        let ok=true;
+        for(const x of gl) for(const y of tl) if(overlaps(x,y)){ ok=false; break; }
+        if(ok){ tgt=gl; break; }
+      }
+      if(tgt){ tgt.push(...tl); tgt.sort((a,b)=>toMins(a.start)-toMins(b.start)); }
+      else glanes.push([...tl]);
+    }
+    glanes.forEach(gl=>lanes.push({subject:gl[0].subject,room:g.room,courses:gl}));
   }
 
-  // ── 2단계: 같은 과목 & 서로 전혀 안 겹치는 열끼리 병합 (열 수 절약) ──
+  // ── 2단계: 같은 과목 & 서로 전혀 안 겹치는 열끼리 병합 (같은 강의실 우선) ──
   function lanesCompatible(a,b){
     if(a.subject!==b.subject) return false;
     for(const x of a.courses) for(const y of b.courses) if(overlaps(x,y)) return false;
@@ -828,8 +854,15 @@ function computeLanes(dayCourses){
   const merged=[];
   for(const lane of lanes){
     let target=null;
+    // 같은 강의실 열 우선 병합
     for(const m of merged){
-      if(lanesCompatible(m,lane)){ target=m; break; }
+      if(m.room&&lane.room&&m.room===lane.room&&lanesCompatible(m,lane)){ target=m; break; }
+    }
+    // 그 외 같은 과목 열
+    if(!target){
+      for(const m of merged){
+        if(lanesCompatible(m,lane)){ target=m; break; }
+      }
     }
     if(target){
       target.courses.push(...lane.courses);
