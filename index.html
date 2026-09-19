@@ -794,59 +794,56 @@ function showLoading(on){
 // ═══════════════════════════════
 function computeLanes(dayCourses){
   const sorted=[...dayCourses].sort((a,b)=>toMins(a.start)-toMins(b.start));
-  const lanes=[];
-
-  // 선생님 공유 여부 (복수 선생님 대응)
-  function shareTeacher(a,b){
-    const ta=new Set((a.teacher||'').split(/[,·]/).map(s=>s.trim()).filter(Boolean));
-    const tb=new Set((b.teacher||'').split(/[,·]/).map(s=>s.trim()).filter(Boolean));
-    for(const t of ta) if(tb.has(t)) return true;
-    return false;
-  }
-
-  for(const c of sorted){
-    const allLanes=lanes.map((l,i)=>({i,l}));
-    const sameSbjLanes=allLanes.filter(({l})=>l.subject===c.subject);
-    let bestLane=-1;
-
-    // Pass 0: 같은 선생님 + 안 겹침 (과목 무관 - 선생님 동선을 한 열로)
-    if(c.teacher){
-      for(const {i,l} of allLanes){
-        if(l.courses.some(x=>shareTeacher(x,c)) && l.courses.every(x=>!overlaps(x,c))){
-          bestLane=i; break;
-        }
-      }
-    }
-
-    // Pass 0.5: 같은 강의실 + 안 겹침 (과목 무관)
-    if(bestLane===-1 && c.room){
-      for(const {i,l} of allLanes){
-        const sameRoom=l.courses.some(x=>x.room&&String(x.room).trim()===String(c.room).trim());
-        if(sameRoom && l.courses.every(x=>!overlaps(x,c))){ bestLane=i; break; }
-      }
-    }
-
-    // Pass 1: 같은 과목 + 안 겹침
-    if(bestLane===-1){
-      for(const {i,l} of sameSbjLanes){
-        const noOvlp=l.courses.every(x=>!overlaps(x,c));
-        const noTeacher=!c.teacher;
-        const hasOtherTeacherOnly=l.courses.length>0 && !l.courses.some(x=>shareTeacher(x,c));
-        if(noOvlp && (noTeacher || !hasOtherTeacherOnly)){ bestLane=i; break; }
-      }
-    }
-
-    // Pass 2: 새 열
-    if(bestLane===-1){
-      lanes.push({subject:c.subject,courses:[]});
-      bestLane=lanes.length-1;
-    }
-
-    lanes[bestLane].courses.push(c);
-  }
-
   const SUBJ_ORDER={국어:0,수학:1,과탐:2,사탐:3,기타:4};
-  lanes.sort((a,b)=>(SUBJ_ORDER[a.subject]??9)-(SUBJ_ORDER[b.subject]??9));
+
+  // ── 1단계: 선생님별 그룹 → 그룹 내에서 안 겹치게 lane 분할 ──
+  // (같은 선생님의 수업·클리닉이 무조건 같은 열에 세로로 이어지도록 최우선 보장)
+  const groups=new Map();
+  let soloSeq=0;
+  sorted.forEach(c=>{
+    const key=(c.teacher||'').trim()||('__solo'+(soloSeq++));
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(c);
+  });
+
+  let lanes=[];
+  for(const [key,list] of groups){
+    const glanes=[];
+    for(const c of list){
+      let placed=false;
+      for(const gl of glanes){
+        if(gl.every(x=>!overlaps(x,c))){ gl.push(c); placed=true; break; }
+      }
+      if(!placed) glanes.push([c]);
+    }
+    glanes.forEach(gl=>lanes.push({subject:gl[0].subject,courses:gl}));
+  }
+
+  // ── 2단계: 같은 과목 & 서로 전혀 안 겹치는 열끼리 병합 (열 수 절약) ──
+  function lanesCompatible(a,b){
+    if(a.subject!==b.subject) return false;
+    for(const x of a.courses) for(const y of b.courses) if(overlaps(x,y)) return false;
+    return true;
+  }
+  const merged=[];
+  for(const lane of lanes){
+    let target=null;
+    for(const m of merged){
+      if(lanesCompatible(m,lane)){ target=m; break; }
+    }
+    if(target){
+      target.courses.push(...lane.courses);
+      target.courses.sort((a,b)=>toMins(a.start)-toMins(b.start));
+    } else {
+      merged.push(lane);
+    }
+  }
+  lanes=merged;
+
+  // ── 3단계: 과목순 → 첫 시작시간순 정렬 ──
+  lanes.sort((a,b)=>
+    (SUBJ_ORDER[a.subject]??9)-(SUBJ_ORDER[b.subject]??9)
+    || toMins(a.courses[0].start)-toMins(b.courses[0].start));
   return lanes.map(l=>l.courses);
 }
 
