@@ -762,12 +762,12 @@ function normalizeSheetCourse(r){
     id:         String(r.id || r['COURSE_ID'] || r['course_id'] || r['강좌ID'] || r['ID'] || ''),
     subject:    r.subject   || r['과목']      || '',
     name:       r.name      || r['강좌명']    || '',
-    teacher:    r.teacher   || r['선생님']    || '',
+    teacher:    String(r.teacher || r['선생님'] || '').trim(),
     type:       r.type      || r['유형']      || '수업',
     days,
     start:      parseTime(r.start  || r['시작']),
     end:        parseTime(r.end    || r['종료']),
-    room:       r.room      || r['강의실']    || '',
+    room:       String(r.room || r['강의실'] || '').trim(),
     memo:       r.memo      || r['메모']      || '',
     startDate:  parseDate(r.startDate || r['개강일']),
     endDate:    parseDate(r.endDate   || r['종강일']),
@@ -798,9 +798,9 @@ function computeLanes(dayCourses){
 
   // 선생님 공유 여부 (복수 선생님 대응)
   function shareTeacher(a,b){
-    const ta=new Set((a.teacher||'').split(/[,·]/));
-    const tb=new Set((b.teacher||'').split(/[,·]/));
-    for(const t of ta) if(t&&tb.has(t)) return true;
+    const ta=new Set((a.teacher||'').split(/[,·]/).map(s=>s.trim()).filter(Boolean));
+    const tb=new Set((b.teacher||'').split(/[,·]/).map(s=>s.trim()).filter(Boolean));
+    for(const t of ta) if(tb.has(t)) return true;
     return false;
   }
 
@@ -821,7 +821,7 @@ function computeLanes(dayCourses){
     // Pass 0.5: 같은 강의실 + 안 겹침 (과목 무관)
     if(bestLane===-1 && c.room){
       for(const {i,l} of allLanes){
-        const sameRoom=l.courses.some(x=>x.room&&x.room===c.room);
+        const sameRoom=l.courses.some(x=>x.room&&String(x.room).trim()===String(c.room).trim());
         if(sameRoom && l.courses.every(x=>!overlaps(x,c))){ bestLane=i; break; }
       }
     }
