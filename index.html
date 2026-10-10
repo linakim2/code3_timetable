@@ -555,9 +555,9 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyokbVte4YCiAL1AxQ8qDZhKC9d5m3jzVImw083Tbg0RTY4r4uk2y5I1RxGk3M0FbgXYw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6oUgTwONNyddFMxCcbZenTEMce88eNoHGGxdY99ol-H7c0AreEytTrFms9ubx-lOoQw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyokbVte4YCiAL1AxQ8qDZhKC9d5m3jzVImw083Tbg0RTY4r4uk2y5I1RxGk3M0FbgXYw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6oUgTwONNyddFMxCcbZenTEMce88eNoHGGxdY99ol-H7c0AreEytTrFms9ubx-lOoQw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -694,7 +694,7 @@ async function load(){
           workSchedule=(workJson.data.schedule||[]).map(s=>({...s,date:parseDate(s.date),start:normT(s.start),end:normT(s.end)}));
         } else { baseWork=[]; workSchedule=[]; }
       }catch(e){ baseWork=[]; workSchedule=[]; }
-      dateEvents=(allData.data.events||[]).map(e=>({...e,date:parseDate(e.date)}));
+      dateEvents=(allData.data.events||[]).map((e,i)=>({...e,id:String(e.id||('tmp'+Date.now()+'_'+i)),date:parseDate(e.date)}));
 
     } else {
       showError('데이터 로드 실패: '+allData.error);
@@ -1224,11 +1224,6 @@ function render(){
           items.push(`<div class="work-item">${txt}</div>`);
         }
       });
-
-
-      // 3. dateEvents 근무 비고
-      const customWork=dateEvents.filter(e=>e.date===isoD&&e.type==='근무');
-      customWork.forEach(w=>items.push(`<div class="work-item"><span class="work-teacher" style="color:var(--red-d)">${w.content}</span></div>`));
 
       if(items.length){
         workCell.innerHTML=items.join('');
