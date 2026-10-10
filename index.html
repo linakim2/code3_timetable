@@ -434,7 +434,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
     <div class="field" style="margin-top:10px">
       <label id="event-content-label">내용 *</label>
       <input id="event-content" placeholder="예) 10:00~22:00">
-      <small id="event-hide-hint" style="color:#aaa;font-size:11px;margin-top:4px">공휴일·모의고사: 내용에 '숨김' 입력 시 그 날짜의 기본 표시가 제거됩니다</small>
+      <small id="event-hide-hint" style="color:#aaa;font-size:11px;margin-top:4px">공휴일·모의고사는 날짜_이벤트 시트에서 관리됩니다 (삭제하면 표시 제거)</small>
     </div>
     <div class="macts">
       <button class="btn btn-danger" id="event-del-btn" onclick="deleteDateEvent()" style="margin-right:auto;display:none">삭제</button>
@@ -444,26 +444,6 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
   </div>
 </div>
 
-<!-- 상담실 모달 -->
-<div class="overlay" id="duty-overlay">
-  <div class="modal" style="width:360px">
-    <div class="mhd">
-      <h2>비고 등록</h2>
-      <button class="xbtn" onclick="closeDutyOverlay()">×</button>
-    </div>
-    <p style="font-size:12px;color:var(--txt2);margin-bottom:14px" id="duty-date-label"></p>
-    <input type="hidden" id="duty-date-val">
-    <div class="field">
-      <label>비고 내용 (여러 개는 쉼표로 구분)</label>
-      <input id="duty-names" placeholder="예) 상담실: 김영태T, 조기종강">
-    </div>
-    <div class="macts">
-      <button class="btn btn-danger" id="duty-del-btn" onclick="deleteDutyEntry()" style="margin-right:auto">삭제</button>
-      <button class="btn" onclick="closeDutyOverlay()">취소</button>
-      <button class="btn btn-p" onclick="saveDutyEntry()">저장</button>
-    </div>
-  </div>
-</div>
 
 <!-- 대체 수업 모달 -->
 <div class="overlay" id="replace-overlay">
@@ -571,16 +551,16 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzjVUGXVliQ0PY8_rz1v4y7eqZuaqe7r2-MoX4oA2y_hs5M9brBEkhQRALiMgluRcbRAw/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyokbVte4YCiAL1AxQ8qDZhKC9d5m3jzVImw083Tbg0RTY4r4uk2y5I1RxGk3M0FbgXYw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzjVUGXVliQ0PY8_rz1v4y7eqZuaqe7r2-MoX4oA2y_hs5M9brBEkhQRALiMgluRcbRAw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyokbVte4YCiAL1AxQ8qDZhKC9d5m3jzVImw083Tbg0RTY4r4uk2y5I1RxGk3M0FbgXYw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
 // ═══════════════════════════════
 //  STATE
 // ═══════════════════════════════
-let courses=[], holidays=[], replaces=[], duty=[], dateEvents=[], baseWork=[], workSchedule=[], curDate=new Date();
+let courses=[], holidays=[], replaces=[], dateEvents=[], baseWork=[], workSchedule=[], curDate=new Date();
 
 
 curDate.setHours(0,0,0,0);
@@ -692,7 +672,6 @@ async function load(){
         start:parseTime(r.start),
         end:parseTime(r.end),
       }));
-      duty=(allData.data.duty||[]).map(d=>({...d,date:parseDate(d.date)}));
       // 당직표 데이터 (병렬 요청 결과 + 시간 정규화)
       try{
         const workJson=await workPromise;
@@ -1242,9 +1221,6 @@ function render(){
         }
       });
 
-      // 2. duty
-      const dayDutyW=duty.filter(dut=>dut.date===isoD).flatMap(dut=>dut.names);
-      if(dayDutyW.length) items.push(`<div class="work-item"><span class="work-teacher">${dayDutyW.join(', ')}</span></div>`);
 
       // 3. dateEvents 근무 비고
       const customWork=dateEvents.filter(e=>e.date===isoD&&e.type==='근무');
@@ -1252,8 +1228,6 @@ function render(){
 
       if(items.length){
         workCell.innerHTML=items.join('');
-      } else if(IS_ADMIN){
-        workCell.innerHTML=`<span class="duty-empty" onclick="openDutyModal('${isoD}')">+ 추가</span>`;
       }
 
       if(di<days.length-1) workCell.style.borderRight='2.5px solid #B0ADA6';
@@ -1434,56 +1408,7 @@ function calcSessionNum(c, dateIso){
   return count>0?count:null;
 }
 
-// \ud55c\uad6d \uacf5\ud734\uc77c (\ub0b4\uc7a5 2025~2027)
-const KR_HOLIDAYS={
-  '2025-01-01':'신정',
-  '2025-01-27':'임시공휴일',
-  '2025-01-28':'설날 연휴','2025-01-29':'설날','2025-01-30':'설날 연휴',
-  '2025-03-01':'삼일절','2025-03-03':'삼일절 대체',
-  '2025-05-05':'어린이날·부처님오신날','2025-05-06':'대체공휴일',
-  '2025-06-03':'대통령선거',
-  '2025-06-06':'현충일',
-  '2025-08-15':'광복절',
-  '2025-10-03':'개천절',
-  '2025-10-05':'추석 연휴','2025-10-06':'추석','2025-10-07':'추석 연휴','2025-10-08':'추석 대체',
-  '2025-10-09':'한글날',
-  '2025-12-25':'크리스마스',
-  '2026-01-01':'신정',
-  '2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴',
-  '2026-03-01':'삼일절','2026-03-02':'삼일절 대체',
-  '2026-05-05':'어린이날',
-  '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체',
-  '2026-06-03':'지방선거',
-  '2026-06-06':'현충일',
-  '2026-08-15':'광복절','2026-08-17':'광복절 대체',
-  '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
-  '2026-10-03':'개천절','2026-10-05':'개천절 대체',
-  '2026-10-09':'한글날',
-  '2026-12-25':'크리스마스',
-  '2027-01-01':'신정',
-  '2027-02-06':'설날 연휴','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'설날 대체',
-  '2027-03-01':'삼일절',
-  '2027-05-05':'어린이날',
-  '2027-05-13':'부처님오신날',
-  '2027-06-06':'현충일',
-  '2027-08-15':'광복절','2027-08-16':'광복절 대체',
-  '2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴',
-  '2027-10-03':'개천절','2027-10-04':'개천절 대체',
-  '2027-10-09':'한글날','2027-10-11':'한글날 대체',
-  '2027-12-25':'크리스마스','2027-12-27':'크리스마스 대체',
-};
 
-// \uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac \uc77c\uc815 (\ub0b4\uc7a5)
-const MOCK_EXAMS={
-  '2025-03-28':'고3 전국모의고사 (3월)','2025-04-24':'고3 전국모의고사 (4월)',
-  '2025-06-05':'고3 수능모의평가 (6월)','2025-07-10':'고3 전국모의고사 (7월)',
-  '2025-09-04':'고3 수능모의평가 (9월)','2025-10-16':'고3 전국모의고사 (10월)',
-  '2026-03-24':'고3 전국모의고사 (3월)','2026-05-07':'고3 전국모의고사 (5월)',
-  '2026-06-04':'고3 수능모의평가 (6월)','2026-07-08':'고3 전국모의고사 (7월)',
-  '2026-09-02':'고3 수능모의평가 (9월)','2026-10-20':'고3 전국모의고사 (10월)',
-  '2026-11-19':'대학수학능력시험',
-  '2026-12-11':'수능 성적 통지',
-};
 
 // \uc2a4\ud130\ub514\uce74\ud398 \uc6b4\uc601\uc2dc\uac04
 const STUDY_CAFE_HOURS={
@@ -1513,18 +1438,14 @@ function getStudyCafeHours(iso){
   return {hours:STUDY_CAFE_HOURS.weekday,isCustom:false};
 }
 
-// 공휴일/모의고사 유효값: 날짜_이벤트(관리자 등록)가 내장값보다 우선.
-// 내용이 '숨김'·'X'·'없음'이면 그 날짜의 기본 표시를 제거
-function isHiddenContent(c){ c=String(c||'').trim(); return c==='숨김'||c==='X'||c==='x'||c==='없음'; }
+// 공휴일/모의고사: 날짜_이벤트 시트가 단일 소스 (유형=공휴일/모의고사 행)
 function effHoliday(iso){
   const ov=dateEvents.find(e=>e.date===iso&&e.type==='공휴일');
-  if(ov) return isHiddenContent(ov.content)?null:(ov.content||KR_HOLIDAYS[iso]||'공휴일');
-  return KR_HOLIDAYS[iso]||null;
+  return ov?(ov.content||'공휴일'):null;
 }
 function effMock(iso){
   const ov=dateEvents.find(e=>e.date===iso&&e.type==='모의고사');
-  if(ov) return isHiddenContent(ov.content)?null:(ov.content||MOCK_EXAMS[iso]||'모의고사');
-  return MOCK_EXAMS[iso]||null;
+  return ov?(ov.content||'모의고사'):null;
 }
 
 function getDateInfo(iso){
@@ -1963,30 +1884,7 @@ function deleteReplace(replaceId,origDate,courseId){
 
 // ═══════════════════════════════
 //  \ube44\uace0(duty) / \ub0a0\uc9dc \uc774\ubca4\ud2b8
-// ═══════════════════════════════
-function openDutyModal(dateIso){
-  document.getElementById('duty-date-label').textContent=dateIso+' \ube44\uace0';
-  document.getElementById('duty-date-val').value=dateIso;
-  const existing=duty.filter(d=>d.date===dateIso).flatMap(d=>d.names);
-  document.getElementById('duty-names').value=existing.join(', ');
-  document.getElementById('duty-del-btn').style.display=existing.length?'':'none';
-  document.getElementById('duty-overlay').classList.add('open');
-}
-function closeDutyOverlay(){document.getElementById('duty-overlay').classList.remove('open')}
-function saveDutyEntry(){
-  const dateIso=document.getElementById('duty-date-val').value;
-  const names=document.getElementById('duty-names').value.split(/[,\u00b7]/).map(s=>s.trim()).filter(Boolean);
-  duty=duty.filter(d=>d.date!==dateIso);
-  if(names.length) duty.push({date:dateIso,names});
-  closeDutyOverlay();render();
-  sheetPost('saveDuty',{date:dateIso,names});
-}
-function deleteDutyEntry(){
-  const dateIso=document.getElementById('duty-date-val').value;
-  duty=duty.filter(d=>d.date!==dateIso);
-  closeDutyOverlay();render();
-  sheetPost('deleteDuty',{date:dateIso});
-}
+
 
 function onEventTypeChange(){
   const type=document.getElementById('event-type').value;
