@@ -434,6 +434,7 @@ footer{text-align:center;padding:16px;font-size:10px;color:#bbb}
     <div class="field" style="margin-top:10px">
       <label id="event-content-label">내용 *</label>
       <input id="event-content" placeholder="예) 10:00~22:00">
+      <small id="event-hide-hint" style="color:#aaa;font-size:11px;margin-top:4px">공휴일·모의고사: 내용에 '숨김' 입력 시 그 날짜의 기본 표시가 제거됩니다</small>
     </div>
     <div class="macts">
       <button class="btn btn-danger" id="event-del-btn" onclick="deleteDateEvent()" style="margin-right:auto;display:none">삭제</button>
@@ -570,9 +571,9 @@ const DAYS_ORDER= ['목','금','토','일','월','화','수']; // week display o
 const START_H=6, END_H=23, SLOT_MIN=30, SLOT_PX=24;
 const TOTAL_SLOTS=(END_H-START_H)*60/SLOT_MIN;
 // ── Google Sheets 연동 설정 ──
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4ympJFQUEVYqarr1mVr8vKMUOGl4lcHipddywK5z_MIt5jfs16g38B_-reSdVQWvGgA/exec'; // Apps Script 배포 URL 입력
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzjVUGXVliQ0PY8_rz1v4y7eqZuaqe7r2-MoX4oA2y_hs5M9brBEkhQRALiMgluRcbRAw/exec'; // Apps Script 배포 URL 입력
 const IS_ADMIN   = location.search.includes('admin'); // URL에 ?admin 붙이면 관리자
-const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4ympJFQUEVYqarr1mVr8vKMUOGl4lcHipddywK5z_MIt5jfs16g38B_-reSdVQWvGgA/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
+const WORK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzjVUGXVliQ0PY8_rz1v4y7eqZuaqe7r2-MoX4oA2y_hs5M9brBEkhQRALiMgluRcbRAw/exec'; // 당직표 Apps Script 배포 URL (비고 행 표시용)
 
 // Sheets 연동 - localStorage 미사용
 
@@ -640,8 +641,16 @@ async function sheetPost(action, data){
     }
     // 쓰기 마커 검증: 구버전 배포가 조회로 응답하면 마커 없음
     if(json.data && json.data.saved===undefined && json.data.deleted===undefined && json.data.verified===undefined){
-      alert('저장이 반영되지 않았습니다.\nApps_Script_시간표.gs 최신본으로 재배포해주세요.\n(배포 → 배포 관리 → ✏️ → 새 버전)');
+      alert('저장이 반영되지 않았습니다.\nApps Script 최신본으로 재배포해주세요.\n(배포 → 배포 관리 → ✏️ → 새 버전)');
       return false;
+    }
+    // 삭제 실패 피드백
+    if(json.data && json.data.deleted===false){
+      alert('시트 삭제 실패: '+(json.data.error||'알 수 없는 오류'));
+      return false;
+    }
+    if(json.data && json.data.deleted===true && json.data.removed===0){
+      alert('시트에서 해당 행을 찾지 못했습니다 (removed: 0).\n시트의 ID와 화면 데이터가 다를 수 있으니 새로고침 후 다시 시도해주세요.');
     }
     console.log('[sheetPost]',action,json.data);
     return true;
@@ -1118,8 +1127,8 @@ function render(){
     h.className='gh'+(isToday?' today-head':'')+(isAllHoliday?' holiday-head':'')+(dayIsEmptyH?' gh-empty':'');
     if(di<days.length-1) h.style.borderRight='2.5px solid #B0ADA6';
     if(isAllHoliday) h.style.cssText+='background:#FEE9E9;color:#922020;';
-    else if(KR_HOLIDAYS[isoDate(d)]) h.style.cssText+='background:#FFF0F0;';
-    else if(MOCK_EXAMS[isoDate(d)]) h.style.cssText+='background:#F5F0FF;';
+    else if(effHoliday(isoDate(d))) h.style.cssText+='background:#FFF0F0;';
+    else if(effMock(isoDate(d))) h.style.cssText+='background:#F5F0FF;';
     h.style.gridColumn=`${specCol(firstCI)} / ${specCol(lastCI)+1}`;
     h.style.gridRow='1';
     const dateStr=`${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
@@ -1195,8 +1204,8 @@ function render(){
       const workCell=document.createElement('div');
       const workDayCols=colSpec.map((s,i)=>({s,i})).filter(({s})=>s.type==='lane'&&s.di===di);
       const workDayIsEmpty=workDayCols.length===1&&workDayCols[0].s.isEmpty;
-      if(workDayIsEmpty) return;
       workCell.className='work-row'+(isToday?' today-col':'');
+      if(workDayIsEmpty) workCell.style.fontSize='8px'; // 빈 날은 좁은 열이라 축소 표시
       workCell.style.cssText=`grid-column:${specCol(firstCI)} / ${specCol(lastCI)+1};grid-row:3;`;
       if(di<days.length-1) workCell.style.borderRight='2.5px solid #B0ADA6';
 
@@ -1427,41 +1436,41 @@ function calcSessionNum(c, dateIso){
 
 // \ud55c\uad6d \uacf5\ud734\uc77c (\ub0b4\uc7a5 2025~2027)
 const KR_HOLIDAYS={
-  '2025-01-01':'\uc2e0\uc815',
-  '2025-01-28':'\uc124\ub0a0 \uc5f0\ud734','2025-01-29':'\uc124\ub0a0','2025-01-30':'\uc124\ub0a0 \uc5f0\ud734',
-  '2025-03-01':'\uc0bc\uc77c\uc808',
-  '2025-05-05':'\uc5b4\ub9b0\uc774\ub0a0','2025-05-06':'\uc5b4\ub9b0\uc774\ub0a0 \ub300\uccb4',
-  '2025-05-15':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0',
-  '2025-06-06':'\ud604\ucda9\uc77c',
-  '2025-08-15':'\uad11\ubcf5\uc808',
-  '2025-09-06':'\ucd94\uc11d \uc5f0\ud734','2025-09-07':'\ucd94\uc11d','2025-09-08':'\ucd94\uc11d \uc5f0\ud734',
-  '2025-10-03':'\uac1c\ucc9c\uc808',
-  '2025-10-09':'\ud55c\uae00\ub0a0',
-  '2025-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
-  '2026-01-01':'\uc2e0\uc815',
-  '2026-01-28':'\uc124\ub0a0 \uc5f0\ud734','2026-01-29':'\uc124\ub0a0','2026-01-30':'\uc124\ub0a0 \uc5f0\ud734',
-  '2026-03-01':'\uc0bc\uc77c\uc808','2026-03-02':'\uc0bc\uc77c\uc808 \ub300\uccb4',
-  '2026-05-05':'\uc5b4\ub9b0\uc774\ub0a0',
-  '2026-05-24':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0','2026-05-25':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0 \ub300\uccb4',
-  '2026-06-03':'\uc9c0\ubc29\uc120\uac70',
-  '2026-06-06':'\ud604\ucda9\uc77c',
-  '2026-08-15':'\uad11\ubcf5\uc808','2026-08-17':'\uad11\ubcf5\uc808 \ub300\uccb4',
-  '2026-09-24':'\ucd94\uc11d \uc5f0\ud734','2026-09-25':'\ucd94\uc11d','2026-09-26':'\ucd94\uc11d \uc5f0\ud734',
-  '2026-10-03':'\uac1c\ucc9c\uc808','2026-10-05':'\uac1c\ucc9c\uc808 \ub300\uccb4',
-  '2026-10-09':'\ud55c\uae00\ub0a0',
-  '2026-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
-  '2027-01-01':'\uc2e0\uc815',
-  '2027-02-06':'\uc124\ub0a0 \uc5f0\ud734','2027-02-07':'\uc124\ub0a0','2027-02-08':'\uc124\ub0a0 \uc5f0\ud734','2027-02-09':'\uc124\ub0a0 \ub300\uccb4',
-  '2027-03-01':'\uc0bc\uc77c\uc808',
-  '2027-05-01':'\uadfc\ub85c\uc790\uc758 \ub0a0','2027-05-03':'\uadfc\ub85c\uc790\uc758 \ub0a0 \ub300\uccb4',
-  '2027-05-05':'\uc5b4\ub9b0\uc774\ub0a0',
-  '2027-05-13':'\ubd80\ucc98\ub2d8\uc624\uc2e0\ub0a0',
-  '2027-06-06':'\ud604\ucda9\uc77c',
-  '2027-08-15':'\uad11\ubcf5\uc808','2027-08-16':'\uad11\ubcf5\uc808 \ub300\uccb4',
-  '2027-09-14':'\ucd94\uc11d \uc5f0\ud734','2027-09-15':'\ucd94\uc11d','2027-09-16':'\ucd94\uc11d \uc5f0\ud734',
-  '2027-10-03':'\uac1c\ucc9c\uc808','2027-10-04':'\uac1c\ucc9c\uc808 \ub300\uccb4',
-  '2027-10-09':'\ud55c\uae00\ub0a0','2027-10-11':'\ud55c\uae00\ub0a0 \ub300\uccb4',
-  '2027-12-25':'\ud06c\ub9ac\uc2a4\ub9c8\uc2a4',
+  '2025-01-01':'신정',
+  '2025-01-27':'임시공휴일',
+  '2025-01-28':'설날 연휴','2025-01-29':'설날','2025-01-30':'설날 연휴',
+  '2025-03-01':'삼일절','2025-03-03':'삼일절 대체',
+  '2025-05-05':'어린이날·부처님오신날','2025-05-06':'대체공휴일',
+  '2025-06-03':'대통령선거',
+  '2025-06-06':'현충일',
+  '2025-08-15':'광복절',
+  '2025-10-03':'개천절',
+  '2025-10-05':'추석 연휴','2025-10-06':'추석','2025-10-07':'추석 연휴','2025-10-08':'추석 대체',
+  '2025-10-09':'한글날',
+  '2025-12-25':'크리스마스',
+  '2026-01-01':'신정',
+  '2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴',
+  '2026-03-01':'삼일절','2026-03-02':'삼일절 대체',
+  '2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체',
+  '2026-06-03':'지방선거',
+  '2026-06-06':'현충일',
+  '2026-08-15':'광복절','2026-08-17':'광복절 대체',
+  '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절','2026-10-05':'개천절 대체',
+  '2026-10-09':'한글날',
+  '2026-12-25':'크리스마스',
+  '2027-01-01':'신정',
+  '2027-02-06':'설날 연휴','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'설날 대체',
+  '2027-03-01':'삼일절',
+  '2027-05-05':'어린이날',
+  '2027-05-13':'부처님오신날',
+  '2027-06-06':'현충일',
+  '2027-08-15':'광복절','2027-08-16':'광복절 대체',
+  '2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴',
+  '2027-10-03':'개천절','2027-10-04':'개천절 대체',
+  '2027-10-09':'한글날','2027-10-11':'한글날 대체',
+  '2027-12-25':'크리스마스','2027-12-27':'크리스마스 대체',
 };
 
 // \uace03 \uc804\uad6d\ubaa8\uc758\uace0\uc0ac \uc77c\uc815 (\ub0b4\uc7a5)
@@ -1485,7 +1494,7 @@ const STUDY_CAFE_HOURS={
 };
 
 function getDefaultCafeHours(iso){
-  if(KR_HOLIDAYS[iso]) return {hours:STUDY_CAFE_HOURS.holiday};
+  if(effHoliday(iso)) return {hours:STUDY_CAFE_HOURS.holiday};
   const d=new Date(iso);
   const day=d.getDay();
   if(day===6) return {hours:STUDY_CAFE_HOURS.saturday};
@@ -1495,7 +1504,7 @@ function getDefaultCafeHours(iso){
 function getStudyCafeHours(iso){
   const custom=dateEvents.find(e=>e.date===iso&&e.type==='\uc6b4\uc601\uc2dc\uac04');
   if(custom) return {hours:custom.content,isCustom:true};
-  const isHoliday=KR_HOLIDAYS[iso]||dateEvents.some(e=>e.date===iso&&e.type==='\uacf5\ud734\uc77c');
+  const isHoliday=!!effHoliday(iso);
   if(isHoliday) return {hours:STUDY_CAFE_HOURS.holiday,isCustom:false};
   const d=new Date(iso);
   const day=d.getDay();
@@ -1504,11 +1513,25 @@ function getStudyCafeHours(iso){
   return {hours:STUDY_CAFE_HOURS.weekday,isCustom:false};
 }
 
+// 공휴일/모의고사 유효값: 날짜_이벤트(관리자 등록)가 내장값보다 우선.
+// 내용이 '숨김'·'X'·'없음'이면 그 날짜의 기본 표시를 제거
+function isHiddenContent(c){ c=String(c||'').trim(); return c==='숨김'||c==='X'||c==='x'||c==='없음'; }
+function effHoliday(iso){
+  const ov=dateEvents.find(e=>e.date===iso&&e.type==='공휴일');
+  if(ov) return isHiddenContent(ov.content)?null:(ov.content||KR_HOLIDAYS[iso]||'공휴일');
+  return KR_HOLIDAYS[iso]||null;
+}
+function effMock(iso){
+  const ov=dateEvents.find(e=>e.date===iso&&e.type==='모의고사');
+  if(ov) return isHiddenContent(ov.content)?null:(ov.content||MOCK_EXAMS[iso]||'모의고사');
+  return MOCK_EXAMS[iso]||null;
+}
+
 function getDateInfo(iso){
   const result=[];
-  if(KR_HOLIDAYS[iso]) result.push({content:KR_HOLIDAYS[iso],type:'\uacf5\ud734\uc77c'});
-  if(MOCK_EXAMS[iso]) result.push({content:MOCK_EXAMS[iso],type:'\ubaa8\uc758\uace0\uc0ac'});
-  dateEvents.filter(e=>e.date===iso&&e.type!=='\uc6b4\uc601\uc2dc\uac04'&&e.type!=='\uae30\ud0c0'&&e.type!=='\uadfc\ubb34').forEach(e=>result.push({content:e.content,type:e.type}));
+  const hol=effHoliday(iso); if(hol) result.push({content:hol,type:'공휴일'});
+  const mock=effMock(iso);   if(mock) result.push({content:mock,type:'모의고사'});
+  dateEvents.filter(e=>e.date===iso&&e.type!=='운영시간'&&e.type!=='기타'&&e.type!=='근무'&&e.type!=='공휴일'&&e.type!=='모의고사').forEach(e=>result.push({content:e.content,type:e.type}));
   return result;
 }
 
@@ -1584,22 +1607,37 @@ function cancelHoliday(courseId,dateIso){
 // ═══════════════════════════════
 function buildDayChecks(selectedDays,dayTimes,defStart,defEnd){
   const wrap=document.getElementById('day-checks');
-  const DAYS_ALL=['\uc6d4','\ud654','\uc218','\ubaa9','\uae08','\ud1a0','\uc77c'];
+  const DAYS_ALL=['월','화','수','목','금','토','일'];
+  const ds=defStart||'', de=defEnd||'';
   wrap.innerHTML=DAYS_ALL.map(d=>{
     const on=selectedDays.includes(d);
     const dt=(dayTimes||{})[d]||{};
+    // 체크된 요일인데 개별 시간이 없으면 기본 시간을 입력칸에 바로 표시
+    const vs=dt.start||(on?ds:''), ve=dt.end||(on?de:'');
     return `<div class="day-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <label style="display:flex;align-items:center;gap:5px;min-width:44px;cursor:pointer">
-        <input type="checkbox" value="${d}" ${on?'checked':''} onchange="this.closest('.day-row').querySelector('.day-time-inputs').style.display=this.checked?'flex':'none'">
+        <input type="checkbox" value="${d}" ${on?'checked':''} onchange="onDayCheck(this)">
         <span style="font-size:13px">${d}</span>
       </label>
       <div class="day-time-inputs" style="display:${on?'flex':'none'};align-items:center;gap:4px">
-        <input type="time" class="dt-start" value="${dt.start||''}" placeholder="\uc2dc\uc791">
+        <input type="time" class="dt-start" step="1800" value="${vs}" data-def="${ds}" placeholder="시작">
         <span style="color:#aaa;font-size:11px">~</span>
-        <input type="time" class="dt-end" value="${dt.end||''}" placeholder="\uc885\ub8cc">
+        <input type="time" class="dt-end" step="1800" value="${ve}" data-def="${de}" placeholder="종료">
       </div>
     </div>`;
   }).join('');
+}
+
+function onDayCheck(cb){
+  const row=cb.closest('.day-row');
+  const box=row.querySelector('.day-time-inputs');
+  box.style.display=cb.checked?'flex':'none';
+  if(cb.checked){
+    // 새로 체크한 요일: 비어 있으면 기본 시간 채움
+    const s=row.querySelector('.dt-start'), e=row.querySelector('.dt-end');
+    if(!s.value&&s.dataset.def) s.value=s.dataset.def;
+    if(!e.value&&e.dataset.def) e.value=e.dataset.def;
+  }
 }
 function collectDayTimes(){
   const days=[]; const dayTimes={};
@@ -1659,7 +1697,8 @@ function openAddModal(kr,mins){
   const endM=(mins!==undefined?mins:1080)+120;
   document.getElementById('f-end').value=`${pad2(Math.floor(endM/60))}:${pad2(endM%60)}`;
   document.getElementById('f-memo').value='';
-  buildDayChecks(kr?[kr]:[], {}, startT, '');
+  const endT=`${pad2(Math.floor(endM/60))}:${pad2(endM%60)}`;
+  buildDayChecks(kr?[kr]:[], {}, startT, endT);
   document.getElementById('del-btn').style.display='none';
   document.getElementById('conflict-warn').style.display='none';
   document.getElementById('overlay').classList.add('open');
@@ -1702,6 +1741,16 @@ function saveCourse(){
   const totalCount=parseInt(document.getElementById('f-totalcount').value)||0;
   if(endMode==='\ud68c\ucc28') endDate=document.getElementById('f-enddate-calc').value;
   if(endMode==='\uc5c6\uc74c') endDate='';
+  // 공통 시작/종료 = 입력한 요일별 시간의 대표값 (시트에 실제 시간이 기록되도록)
+  let repStart=document.getElementById('f-start').value;
+  let repEnd=document.getElementById('f-end').value;
+  {
+    const dtVals=days.map(dd=>dayTimes[dd]).filter(Boolean);
+    const ss=dtVals.map(t=>t.start).filter(Boolean).sort();
+    const es=dtVals.map(t=>t.end).filter(Boolean).sort();
+    if(ss.length) repStart=ss[0];               // 가장 이른 시작
+    if(es.length) repEnd=es[es.length-1];       // 가장 늦은 종료
+  }
   const data={
     id: editingId||nextId(),
     name,
@@ -1712,8 +1761,8 @@ function saveCourse(){
     totalCount: endMode==='\ud68c\ucc28'?totalCount:(totalCount||0),
     subject: document.getElementById('f-subject').value,
     type: document.getElementById('f-type').value,
-    start: document.getElementById('f-start').value,
-    end: document.getElementById('f-end').value,
+    start: repStart,
+    end: repEnd,
     days, dayTimes,
     memo: document.getElementById('f-memo').value.trim(),
   };
